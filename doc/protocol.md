@@ -44,9 +44,9 @@ Possible `<error code>`:
 
 | Error code | Description                              |
 |------------|------------------------------------------|
-| 5000       | User already logged in                   |
+| 5000       | User with this name already exists       |
 | 5001       | Username has an invalid format or length |      
-| 5002       | User cannot login twice                  |
+| 5002       | Already logged in                        |
 
 # 2. Broadcast message
 
