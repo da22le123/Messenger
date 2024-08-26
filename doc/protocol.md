@@ -79,7 +79,7 @@ Possible `<error code>`:
 
 # 3. Heartbeat message
 
-Sends a ping message to the client to check whether the client is still active. The receiving client should respond with a pong message to confirm it is still active. If after 3 seconds no pong message has been received by the server, the connection to the client is closed. Before closing, the client is notified with a HANGUP message, with reason code 7000. The HANGUP is also used if the input message is too long to be parsed (reason code 7001). Servers should be capable of parsing messages at least 1024 bytes long.
+Sends a ping message to the client to check whether the client is still active. The receiving client should respond with a pong message to confirm it is still active. If after 3 seconds no pong message has been received by the server, the connection to the client is closed. Before closing, the client is notified with a HANGUP message, with reason code 7000.
 
 The server sends a ping message to a client every 10 seconds. The first ping message is send to the client 10 seconds after the client is logged in.
 
@@ -100,10 +100,9 @@ S -> C: HANGUP {"reason": <reason code>}
 ```      
 Possible `<reason code>`:
 
-| Reason code | Description           |
-|-------------|-----------------------|
-| 7000        | User is not logged in |    
-| 7001        | Unterminated message  |
+| Reason code | Description      |
+|-------------|------------------|
+| 7000        | No pong received |    
 
 ```
 S -> C: PONG_ERROR {"code": <error code>}
