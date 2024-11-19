@@ -35,15 +35,30 @@ public class Client {
     }
 
 
+    /**
+     * Set up a socket with the given IP address and port
+     * @param ipAddress IP address of the server
+     * @param port Port of the server
+     * @return
+     * @throws IOException
+     */
     public Socket setUpSocket(String ipAddress, int port) throws IOException {
         return new Socket(ipAddress, port);
     }
 
+    /**
+     * Sends a message to the server
+     * @param message The message to be sent
+     */
     public void sendMessage(String message) {
         out.println(message);
     }
 
 
+    /**
+     * Set up a thread that listens for messages from the server
+     * @return The thread that listens for messages from the server
+     */
     public Thread setUpListenerThread() {
         return new Thread(() -> {
             try {
@@ -63,6 +78,11 @@ public class Client {
         });
     }
 
+    /**
+     * Logs in the user
+     * Awaits for the response from the server containing the status of the login
+     * @throws InterruptedException
+     */
     public void logIn() throws InterruptedException {
         lock.lock();
 
@@ -82,6 +102,10 @@ public class Client {
         lock.unlock();
     }
 
+    /**
+     * Starts the chat with other users, first prints the unseen messages if there are any. Then awaits for the user input
+     * If user types /quitchat, the chat ends
+     */
     public void startChatting() {
         Scanner sc = new Scanner(System.in);
 
@@ -108,11 +132,21 @@ public class Client {
         unseenMessages.clear();
     }
 
+    /**
+     * Exits the chat.|
+     * Send a BYE message to the server and terminates the program
+     * @throws IOException
+     */
     public void exit() throws IOException {
         sendMessage("BYE");
         System.exit(0);
     }
 
+    /**
+     * Processes the message received from the server based on the message type
+     * @param message The message received from the server
+     * @throws JsonProcessingException
+     */
     private void processMessage(String message) throws JsonProcessingException {
         // Split the message into two parts: the type and the rest
         String[] parts = message.split(" ", 2); // Limit to 2 splits
@@ -136,6 +170,13 @@ public class Client {
         }
     }
 
+    /**
+     * Handles the broadcast message received from the server.
+     * If the user is not in the chat, the message is added to the unseen messages list.
+     * If the user is in the chat, the message is printed to the console.
+     * @param message The message received from the server
+     * @throws JsonProcessingException
+     */
     private void handleBroadcast(String message) throws JsonProcessingException {
         Message parsedMessage = MessageParser.parseMessage(message);
 
@@ -147,6 +188,12 @@ public class Client {
         }
     }
 
+    /**
+     * Handles the broadcast response message received from the server.
+     * If the message was not sent successfully, an error message is printed to the console.
+     * @param message The message received from the server
+     * @throws JsonProcessingException
+     */
     private void handleBroadcastResponse(String message) throws JsonProcessingException {
         Status status = MessageParser.parseStatus(message);
 
@@ -159,13 +206,17 @@ public class Client {
         }
     }
 
+    /**
+     * Handles the enter response message received from the server.
+     * If the user was successfully logged in, a success message is printed to the console.
+     * If the user was not successfully logged in, an error message is printed to the console.
+     * @param message The message received from the server
+     * @throws JsonProcessingException
+     */
     private void handleEnterResponse(String message) throws JsonProcessingException {
         lock.lock();
 
         Status status = MessageParser.parseStatus(message);
-
-        // log the status
-        // System.out.println(status);
 
         if (status.isOk()) {
             System.out.println("Successfully logged in as " + name);
@@ -180,12 +231,17 @@ public class Client {
                 case 5001 -> System.out.println("Username has an invalid format or length");
                 case 5002 -> System.out.println("Already logged in");
             }
-
         }
 
         lock.unlock();
     }
 
+    /**
+     * Handles the user leaving message received from the server.
+     * Prints a message to the console that the user has left the chat.
+     * @param message The message received from the server
+     * @throws JsonProcessingException
+     */
     private void handleUserLeaving(String message) throws JsonProcessingException {
         Message parsedMessage = MessageParser.parseMessage(message);
         System.out.println(parsedMessage.username() + " has left the chat.");

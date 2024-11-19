@@ -14,14 +14,23 @@ public class Main {
         while (true) {
             selectOption(sc, client);
         }
-
     }
 
+    /**
+     * Prints the menu
+     */
     public static void printMenu() {
         System.out.println("1. Start chatting");
         System.out.println("2. Exit");
     }
 
+    /**
+     * Selects an option from the menu
+     * @param sc Scanner object
+     * @param client Client object
+     * @throws InterruptedException
+     * @throws IOException
+     */
     public static void selectOption(Scanner sc, Client client) throws InterruptedException, IOException {
         int option = -1;
 

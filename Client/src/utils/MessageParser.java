@@ -7,7 +7,15 @@ import model.MessageType;
 import model.Message;
 import model.Status;
 
+/**
+ * Parses messages received from the server
+ */
 public class MessageParser {
+    /**
+     * Parses a message type from a string
+     * @param message The message to be parsed
+     * @return The message type
+     */
     public static MessageType parseMessageType(String message) {
         switch (message) {
             case "READY":
@@ -29,12 +37,24 @@ public class MessageParser {
         }
     }
 
+    /**
+     * Parses a status from a JSON string
+     * @param statusJson The JSON string to be parsed
+     * @return The status object
+     * @throws JsonProcessingException
+     */
     public static Status parseStatus(String statusJson) throws JsonProcessingException {
         ObjectMapper objectMapper = new ObjectMapper();
 
         return objectMapper.readValue(statusJson, Status.class);
     }
 
+    /**
+     * Parses a message from a JSON string
+     * @param message The JSON string to be parsed
+     * @return The message object
+     * @throws JsonProcessingException
+     */
     public static Message parseMessage(String message) throws JsonProcessingException {
         ObjectMapper objectMapper = new ObjectMapper();
 
