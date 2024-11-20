@@ -1,4 +1,4 @@
-package model;
+package model.messages.receive;
 
 /**
  * Represents the status of a request

@@ -1,7 +1,7 @@
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.junit.jupiter.api.Test;
 import utils.MessageParser;
-import model.Status;
+import model.messages.receive.Status;
 
 import static org.junit.jupiter.api.Assertions.*;
 

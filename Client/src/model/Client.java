@@ -1,6 +1,12 @@
 package model;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import model.messages.*;
+import model.messages.receive.ReceivedBroadcastMessage;
+import model.messages.receive.Status;
+import model.messages.send.BroadcastRequest;
+import model.messages.send.EnterRequest;
+import model.messages.send.Sendable;
 import utils.MessageParser;
 
 import java.io.*;
@@ -19,7 +25,7 @@ public class Client {
     private boolean isLoggedIn;
     private final Condition loggedIn;
     private boolean isInChat;
-    private final ArrayList<Message> unseenMessages;
+    private final ArrayList<ReceivedBroadcastMessage> unseenMessages;
 
     public Client(String ipAddress, int port) throws IOException, InterruptedException {
         this.socket = setUpSocket(ipAddress, port);
@@ -54,6 +60,10 @@ public class Client {
         out.println(message);
     }
 
+    public void sendMessage(Sendable message) throws JsonProcessingException {
+        out.println(message.toJson());
+    }
+
 
     /**
      * Set up a thread that listens for messages from the server
@@ -83,7 +93,7 @@ public class Client {
      * Awaits for the response from the server containing the status of the login
      * @throws InterruptedException
      */
-    public void logIn() throws InterruptedException {
+    public void logIn() throws InterruptedException, JsonProcessingException {
         lock.lock();
 
             if (!isLoggedIn)
@@ -93,7 +103,7 @@ public class Client {
                     Scanner sc = new Scanner(System.in);
                     name = sc.nextLine();
 
-                    sendMessage("ENTER {\"username\":\"" + name + "\"}");
+                    sendMessage(new EnterRequest(name));
                     loggedIn.await();
                 }
             else
@@ -106,7 +116,7 @@ public class Client {
      * Starts the chat with other users, first prints the unseen messages if there are any. Then awaits for the user input
      * If user types /quitchat, the chat ends
      */
-    public void startChatting() {
+    public void startChatting() throws JsonProcessingException {
         Scanner sc = new Scanner(System.in);
 
         System.out.println("The chat with other users has started. Type /quitchat to exit the chat.");
@@ -114,7 +124,7 @@ public class Client {
 
         if (!unseenMessages.isEmpty()) {
             System.out.println("Unseen messages: ");
-            for (Message m : unseenMessages) {
+            for (ReceivedBroadcastMessage m : unseenMessages) {
                 System.out.println(m.username() + ": " + m.message() + "\n");
             }
         }
@@ -125,7 +135,7 @@ public class Client {
             if (message.equals("/quitchat")) {
                 isInChat = false;
             } else {
-                sendMessage("BROADCAST_REQ {\"message\":\"" + message + "\"}");
+                sendMessage(new BroadcastRequest(message));
             }
         }
 
@@ -138,7 +148,7 @@ public class Client {
      * @throws IOException
      */
     public void exit() throws IOException {
-        sendMessage("BYE");
+        sendMessage(MessageType.BYE.toString());
         System.exit(0);
     }
 
@@ -152,21 +162,24 @@ public class Client {
         String[] parts = message.split(" ", 2); // Limit to 2 splits
         // parse the message type
         MessageType messageType = MessageParser.parseMessageType(parts[0]);
+        String messageContent = parts[1];
 
         switch (messageType) {
-            case ENTER_RESP -> handleEnterResponse(parts[1]);
+            case PING -> sendMessage(MessageType.PONG.toString());
 
-            case PING -> sendMessage("PONG");
+            case ENTER_RESP -> handleEnterResponse(messageContent);
 
-            case BROADCAST -> handleBroadcast(parts[1]);
+            case BROADCAST -> handleBroadcast(messageContent);
 
-            case BROADCAST_RESP -> handleBroadcastResponse(parts[1]);
+            case BROADCAST_RESP -> handleBroadcastResponse(messageContent);
 
-            case LEFT -> handleUserLeaving(parts[1]);
+            case LEFT -> handleUserLeaving(messageContent);
 
             case BYE_RESP -> System.out.println("Exiting the chat. See you next time!");
 
-            case UNKNOWN_MESSAGE_TYPE -> System.out.println("Invalid message type");
+            case PARSE_ERROR -> System.out.println("Parse error");
+
+            case UNKNOWN_COMMAND -> System.out.println("Unknown command");
         }
     }
 
@@ -178,7 +191,7 @@ public class Client {
      * @throws JsonProcessingException
      */
     private void handleBroadcast(String message) throws JsonProcessingException {
-        Message parsedMessage = MessageParser.parseMessage(message);
+        ReceivedBroadcastMessage parsedMessage = MessageParser.parseMessage(message);
 
         if (!isInChat) {
             unseenMessages.add(parsedMessage);
@@ -243,7 +256,7 @@ public class Client {
      * @throws JsonProcessingException
      */
     private void handleUserLeaving(String message) throws JsonProcessingException {
-        Message parsedMessage = MessageParser.parseMessage(message);
+        ReceivedBroadcastMessage parsedMessage = MessageParser.parseMessage(message);
         System.out.println(parsedMessage.username() + " has left the chat.");
     }
 

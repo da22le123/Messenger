@@ -3,9 +3,9 @@ package utils;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import model.MessageType;
-import model.Message;
-import model.Status;
+import model.messages.MessageType;
+import model.messages.receive.ReceivedBroadcastMessage;
+import model.messages.receive.Status;
 
 /**
  * Parses messages received from the server
@@ -17,24 +17,7 @@ public class MessageParser {
      * @return The message type
      */
     public static MessageType parseMessageType(String message) {
-        switch (message) {
-            case "READY":
-                return MessageType.READY;
-            case "ENTER_RESP":
-                return MessageType.ENTER_RESP;
-            case "PING":
-                return MessageType.PING;
-            case "BROADCAST":
-                return MessageType.BROADCAST;
-            case "BROADCAST_RESP":
-                return MessageType.BROADCAST_RESP;
-            case "LEFT":
-                return MessageType.LEFT;
-            case "BYE_RESP":
-                return MessageType.BYE_RESP;
-            default:
-                return MessageType.UNKNOWN_MESSAGE_TYPE;
-        }
+        return MessageType.valueOf(message);
     }
 
     /**
@@ -55,7 +38,7 @@ public class MessageParser {
      * @return The message object
      * @throws JsonProcessingException
      */
-    public static Message parseMessage(String message) throws JsonProcessingException {
+    public static ReceivedBroadcastMessage parseMessage(String message) throws JsonProcessingException {
         ObjectMapper objectMapper = new ObjectMapper();
 
         // Allow unquoted field names
@@ -63,8 +46,9 @@ public class MessageParser {
         objectMapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, true);
         objectMapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
 
-        return objectMapper.readValue(message, Message.class);
+        return objectMapper.readValue(message, ReceivedBroadcastMessage.class);
     }
+
 
 
 
