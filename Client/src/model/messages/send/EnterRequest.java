@@ -7,6 +7,7 @@ import model.messages.MessageType;
 import model.messages.send.Sendable;
 
 public class EnterRequest implements Sendable {
+    @JsonProperty("username")
     private String username;
 
     public EnterRequest(@JsonProperty String username) {
@@ -16,6 +17,6 @@ public class EnterRequest implements Sendable {
     @Override
     public String toJson() throws JsonProcessingException {
         ObjectMapper objectMapper = new ObjectMapper();
-        return MessageType.ENTER + objectMapper.writeValueAsString(this);
+        return MessageType.ENTER + " " + objectMapper.writeValueAsString(this);
     }
 }

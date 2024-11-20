@@ -17,6 +17,6 @@ public class BroadcastRequest implements Sendable {
     @Override
     public String toJson() throws JsonProcessingException {
         ObjectMapper objectMapper = new ObjectMapper();
-        return MessageType.BROADCAST_REQ + objectMapper.writeValueAsString(this);
+        return MessageType.BROADCAST_REQ + " " +  objectMapper.writeValueAsString(this);
     }
 }

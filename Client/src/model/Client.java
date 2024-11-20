@@ -80,7 +80,6 @@ public class Client {
                 }
 
                 // handle the case when the server hangs up
-                System.out.println("Server hung up, connection lost.");
                 System.exit(0);
             } catch (IOException e) {
                 System.out.println(e.getMessage());
@@ -162,18 +161,17 @@ public class Client {
         String[] parts = message.split(" ", 2); // Limit to 2 splits
         // parse the message type
         MessageType messageType = MessageParser.parseMessageType(parts[0]);
-        String messageContent = parts[1];
 
         switch (messageType) {
             case PING -> sendMessage(MessageType.PONG.toString());
 
-            case ENTER_RESP -> handleEnterResponse(messageContent);
+            case ENTER_RESP -> handleEnterResponse(parts[1]);
 
-            case BROADCAST -> handleBroadcast(messageContent);
+            case BROADCAST -> handleBroadcast(parts[1]);
 
-            case BROADCAST_RESP -> handleBroadcastResponse(messageContent);
+            case BROADCAST_RESP -> handleBroadcastResponse(parts[1]);
 
-            case LEFT -> handleUserLeaving(messageContent);
+            case LEFT -> handleUserLeaving(parts[1]);
 
             case BYE_RESP -> System.out.println("Exiting the chat. See you next time!");
 
