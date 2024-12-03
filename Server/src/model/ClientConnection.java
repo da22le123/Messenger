@@ -2,7 +2,10 @@ package model;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import model.messages.MessageType;
+import model.messages.messagefactories.EnterResponseFactory;
 import model.messages.receive.EnterRequest;
+import model.messages.send.Response;
+import model.messages.send.Sendable;
 import utils.MessageParser;
 import utils.ValidationUtils;
 
@@ -13,7 +16,6 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -23,29 +25,21 @@ public class ClientConnection {
     private final Socket socket;
     private final PrintWriter out;
     private final BufferedReader in;
+    //private boolean isPongReceived;
 
-    private ReentrantLock lock;
-    private Condition receivedPong;
-    private boolean isPongReceived;
-
-    private final ScheduledExecutorService scheduler;
     private final ClientManager clientManager;
 
 
-    public ClientConnection(String username, Socket socket) throws IOException {
-        this.username = username;
-        this.socket = socket;
-        out = new PrintWriter(socket.getOutputStream(), true);
-        in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        scheduler = Executors.newSingleThreadScheduledExecutor();
-        clientManager = new ClientManager();
-    }
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private final ReentrantLock lock = new ReentrantLock();
+    private final Condition pongReceived = lock.newCondition();
+    private volatile boolean isPongReceived = false;
+
 
     public ClientConnection(Socket socket) throws IOException {
         this.socket = socket;
         out = new PrintWriter(socket.getOutputStream(), true);
         in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        scheduler = Executors.newSingleThreadScheduledExecutor();
         clientManager = new ClientManager();
     }
 
@@ -53,7 +47,8 @@ public class ClientConnection {
         new Thread(() -> {
             try {
                 //todo create a data structure for the message
-                sendMessage("READY {\"version\": \"1.0.0\"}");
+
+                sendMessage("READY {\"version\": \"1.6.0\"}");
 
                 String clientMessage;
                 while ((clientMessage = in.readLine()) != null) {
@@ -74,83 +69,90 @@ public class ClientConnection {
 
         switch (messageType) {
             case ENTER -> handleEnter(parts[1]);
-            case PONG -> isPongReceived = true;
+            case PONG -> handlePong();
+            case BROADCAST_REQ -> handleBroadcast(parts[1]);
         }
     }
 
-    public void startPingThread() {
-        Thread pingThread = new Thread(() -> {
-            while (true) {
-                try {
-                    Thread.sleep(10000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
+    private void handleBroadcast(String payload) {
 
-                sendMessage("PING");
-                long startTime = System.currentTimeMillis();
-                while (!isPongReceived) {
-                    if (System.currentTimeMillis() - startTime > 3000) {
-                        hangUp(); // todo not yet implemented
-                        break;
-                    }
-                }
+    }
 
-                isPongReceived = false;
+    public void handlePong() {
+        lock.lock();
+        try {
+            isPongReceived = true;
+            pongReceived.signal();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void pingPong() {
+        lock.lock();
+
+        while (!isPongReceived) {
+            sendMessage("PING");
+            try {
+                // hangup if we do not receive pong in 3 seconds
+                if (!pongReceived.await(3, TimeUnit.SECONDS)) {
+                    hangUp();
+                }
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
             }
-        });
+        }
 
-        pingThread.start();
+        isPongReceived = false;
+        lock.unlock();
+    }
+
+    public void startPingScheduler() {
+        scheduler.scheduleAtFixedRate(this::pingPong, 10, 10, TimeUnit.SECONDS);
     }
 
 
     private void hangUp() {
         // todo implement
+        System.out.println("Hanging up");
     }
 
     private void handleEnter(String payload) throws JsonProcessingException {
         EnterRequest enterRequest = EnterRequest.fromJson(payload);
         String proposedUsername = enterRequest.username();
 
-        // already has a client with the same username
-        if (clientManager.hasClient(proposedUsername)) {
-            sendMessage("ENTER_RESP {\"status\":\"ERROR\", \"code\":5000");
-            return;
+        boolean hasClient = clientManager.hasClient(proposedUsername);
+        boolean isInvalidUsername = proposedUsername.isEmpty() || !ValidationUtils.isValidUsername(proposedUsername);
+        boolean isLoggedIn = this.username != null;
+
+        EnterResponseFactory enterResponseFactory = new EnterResponseFactory();
+        Response response = enterResponseFactory.createEnterResponse(hasClient, isInvalidUsername, isLoggedIn, proposedUsername);
+
+        if (response != null) {
+            sendMessage(response);
+        } else {
+            throw new RuntimeException("No response was created by the factory.");
         }
 
-        // invalid username
-        if (ValidationUtils.isValidUsername(proposedUsername)) {
-            sendMessage("ENTER_RESP {\"status\":\"ERROR\", \"code\":5001}");
-            return;
+        if (response.status().isOk()) {
+            this.username = proposedUsername;
+            clientManager.addClient(this);
         }
 
-        // already logged in
-        if (this.username != null) {
-            sendMessage("ENTER_RESP {\"status\":\"ERROR\", \"code\":5002}");
-            return;
-        }
-
-        setUsername(proposedUsername);
-        sendMessage("ENTER_RESP {\"status\":\"OK\"}");
-        startPingThread();
+        startPingScheduler();
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     public void sendMessage(String message) {
         System.out.println("Sending message: " + message);
         out.println(message);
+    }
+
+    public void sendMessage(Sendable message) {
+        try {
+            sendMessage(message.toJson());
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public String getUsername() {

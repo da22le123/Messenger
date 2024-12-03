@@ -27,8 +27,6 @@ public class Server {
 
             // For each client start a processing thread and a ping thread.
             clientConnection.startMessageProcessingThread();
-            clientConnection.startPingThread();
-
         }
     }
 
