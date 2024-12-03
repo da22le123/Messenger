@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import model.messages.MessageType;
 import model.messages.messagefactories.EnterResponseFactory;
 import model.messages.receive.EnterRequest;
+import model.messages.send.JoinedMessage;
 import model.messages.send.Response;
 import model.messages.send.Sendable;
 import utils.MessageParser;
@@ -27,7 +28,7 @@ public class ClientConnection {
     private final BufferedReader in;
     //private boolean isPongReceived;
 
-    private final ClientManager clientManager;
+    private ClientManager clientManager;
 
 
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -36,11 +37,11 @@ public class ClientConnection {
     private volatile boolean isPongReceived = false;
 
 
-    public ClientConnection(Socket socket) throws IOException {
+    public ClientConnection(Socket socket, ClientManager clientManager) throws IOException {
         this.socket = socket;
         out = new PrintWriter(socket.getOutputStream(), true);
         in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        clientManager = new ClientManager();
+        this.clientManager = clientManager;
     }
 
     public void startMessageProcessingThread() {
@@ -135,19 +136,23 @@ public class ClientConnection {
         }
 
         if (response.status().isOk()) {
+            // set the current username
             this.username = proposedUsername;
+            // add the client to the list of clients
             clientManager.addClient(this);
+            // notify all clients that a new client has entered
+            clientManager.sendMessageToAllClients(new JoinedMessage(this.username), this);
         }
 
         startPingScheduler();
     }
 
-    public void sendMessage(String message) {
+    private void sendMessage(String message) {
         System.out.println("Sending message: " + message);
         out.println(message);
     }
 
-    public void sendMessage(Sendable message) {
+    private void sendMessage(Sendable message) {
         try {
             sendMessage(message.toJson());
         } catch (JsonProcessingException e) {
@@ -175,5 +180,12 @@ public class ClientConnection {
         return in;
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (this.getUsername() != null && ((ClientConnection) obj).getUsername() != null) {
+            return this.getUsername().equals(((ClientConnection) obj).getUsername());
+        }
 
+        return this.getSocket().equals(((ClientConnection) obj).getSocket());
+    }
 }

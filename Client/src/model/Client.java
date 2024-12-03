@@ -171,6 +171,8 @@ public class Client {
 
             case BROADCAST_RESP -> handleBroadcastResponse(parts[1]);
 
+            case JOINED -> handleUserJoining(parts[1]);
+
             case LEFT -> handleUserLeaving(parts[1]);
 
             case BYE_RESP -> System.out.println("Exiting the chat. See you next time!");
@@ -179,6 +181,11 @@ public class Client {
 
             case UNKNOWN_COMMAND -> System.out.println("Unknown command");
         }
+    }
+
+    private void handleUserJoining(String message) throws JsonProcessingException {
+        ReceivedBroadcastMessage parsedMessage = MessageParser.parseMessage(message);
+        System.out.println(parsedMessage.username() + " has joined the chat.");
     }
 
     /**

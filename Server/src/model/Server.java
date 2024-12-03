@@ -23,7 +23,7 @@ public class Server {
         while (true) {
             // Wait for an incoming client-connection request (blocking).
             Socket socket = serverSocket.accept();
-            ClientConnection clientConnection = new ClientConnection(socket);
+            ClientConnection clientConnection = new ClientConnection(socket, clientManager);
 
             // For each client start a processing thread and a ping thread.
             clientConnection.startMessageProcessingThread();
