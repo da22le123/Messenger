@@ -34,6 +34,7 @@ public class ClientConnection {
     private final ReentrantLock lock = new ReentrantLock();
     private final Condition pongReceived = lock.newCondition();
     private volatile boolean isPongReceived = false;
+    private volatile boolean isPingSent = false;
 
 
     public ClientConnection(Socket socket, ClientManager clientManager) throws IOException {
@@ -95,14 +96,18 @@ public class ClientConnection {
     }
 
     private void handleBye() {
-
+        // todo: handle the BYE message
     }
 
     public void handlePong() {
         lock.lock();
         try {
-            isPongReceived = true;
-            pongReceived.signal();
+            if (isPingSent) {
+                isPongReceived = true;
+                pongReceived.signal();
+            } else {
+                sendMessage(new PongErrorMessage(8000));
+            }
         } finally {
             lock.unlock();
         }
@@ -113,6 +118,7 @@ public class ClientConnection {
 
         while (!isPongReceived) {
             sendMessage("PING");
+            isPingSent = true;
             try {
                 // hangup if we do not receive pong in 3 seconds
                 if (!pongReceived.await(3, TimeUnit.SECONDS)) {
@@ -123,6 +129,7 @@ public class ClientConnection {
             }
         }
 
+        isPingSent = false;
         isPongReceived = false;
         lock.unlock();
     }
@@ -132,13 +139,30 @@ public class ClientConnection {
     }
 
 
-    private void hangUp() {
-        // todo implement
-        System.out.println("Hanging up");
+    private void hangUp() throws InterruptedException {
+        sendMessage(new HangupMessage(7000));
+
+        clientManager.removeClient(this);
+        scheduler.shutdownNow();
+        scheduler.awaitTermination(10, TimeUnit.SECONDS);
+
+        try {
+            socket.close();
+            out.close();
+            in.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void handleEnter(String payload) throws JsonProcessingException {
         EnterRequest enterRequest = EnterRequest.fromJson(payload);
+
+        if (enterRequest == null) {
+            sendMessage(MessageType.PARSE_ERROR.toString());
+            return;
+        }
+
         String proposedUsername = enterRequest.username();
 
         boolean hasClient = clientManager.hasClient(proposedUsername);

@@ -16,6 +16,8 @@ public enum MessageType {
     LEFT,
     BYE,
     BYE_RESP,
+    HANGUP,
     PARSE_ERROR,
+    PONG_ERROR,
     UNKNOWN_COMMAND
 }

@@ -19,6 +19,10 @@ public class ClientManager {
         return true;
     }
 
+    public synchronized void removeClient(ClientConnection client) {
+        clients.remove(client);
+    }
+
     private synchronized boolean hasClient(ClientConnection clientConnection) {
         return clients.contains(clientConnection);
     }

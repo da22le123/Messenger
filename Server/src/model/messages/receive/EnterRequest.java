@@ -6,11 +6,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public record EnterRequest(String username) implements Creator<EnterRequest> {
     private static final String EMPTY_USERNAME = "";
     @Override
-    public EnterRequest create(String json) throws JsonProcessingException {
+    public EnterRequest create(String json)  {
         ObjectMapper objectMapper = new ObjectMapper();
         if (json.isEmpty())
             return new EnterRequest(EMPTY_USERNAME);
-        return objectMapper.readValue(json, EnterRequest.class);
+        try {
+            return objectMapper.readValue(json, EnterRequest.class);
+        } catch (JsonProcessingException e) {
+            return null;
+        }
     }
 
     public static EnterRequest fromJson(String json) throws JsonProcessingException {
