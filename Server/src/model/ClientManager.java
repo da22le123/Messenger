@@ -35,8 +35,6 @@ public class ClientManager {
 
     public synchronized void sendMessageToAllClients(Sendable message, ClientConnection sender) throws JsonProcessingException {
         for (ClientConnection client : clients) {
-            System.out.println("Clients size: " + clients.size());
-            System.out.println("Client: " + client.getUsername());
             // don't send the message to the sender
             if (client.equals(sender)) {
                 continue;

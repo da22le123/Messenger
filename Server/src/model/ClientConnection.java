@@ -2,11 +2,10 @@ package model;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import model.messages.MessageType;
-import model.messages.messagefactories.EnterResponseFactory;
+import model.messages.messagefactories.StatusFactory;
+import model.messages.receive.BroadcastRequest;
 import model.messages.receive.EnterRequest;
-import model.messages.send.JoinedMessage;
-import model.messages.send.Response;
-import model.messages.send.Sendable;
+import model.messages.send.*;
 import utils.MessageParser;
 import utils.ValidationUtils;
 
@@ -72,10 +71,30 @@ public class ClientConnection {
             case ENTER -> handleEnter(parts[1]);
             case PONG -> handlePong();
             case BROADCAST_REQ -> handleBroadcast(parts[1]);
+            case BYE -> handleBye();
         }
     }
 
-    private void handleBroadcast(String payload) {
+    private void handleBroadcast(String payload) throws JsonProcessingException {
+        BroadcastRequest broadcastRequest = BroadcastRequest.fromJson(payload);
+
+        boolean isLoggedIn = this.username != null;
+
+        StatusFactory statusFactory = new StatusFactory();
+        Status status = statusFactory.createBroadcastResponseStatus(isLoggedIn);
+
+        if (status != null) {
+            sendMessage(new Response(MessageType.BROADCAST_RESP, status));
+        } else {
+            throw new RuntimeException("No response was created by the factory.");
+        }
+
+        if (status.isOk()) {
+            clientManager.sendMessageToAllClients(new BroadcastMessage(this.username, broadcastRequest.message()), this);
+        }
+    }
+
+    private void handleBye() {
 
     }
 
@@ -126,16 +145,16 @@ public class ClientConnection {
         boolean isInvalidUsername = proposedUsername.isEmpty() || !ValidationUtils.isValidUsername(proposedUsername);
         boolean isLoggedIn = this.username != null;
 
-        EnterResponseFactory enterResponseFactory = new EnterResponseFactory();
-        Response response = enterResponseFactory.createEnterResponse(hasClient, isInvalidUsername, isLoggedIn, proposedUsername);
+        StatusFactory statusFactory = new StatusFactory();
+        Status status = statusFactory.createEnterResponseStatus(hasClient, isInvalidUsername, isLoggedIn, proposedUsername);
 
-        if (response != null) {
-            sendMessage(response);
+        if (status != null) {
+            sendMessage(new Response(MessageType.ENTER_RESP, status));
         } else {
             throw new RuntimeException("No response was created by the factory.");
         }
 
-        if (response.status().isOk()) {
+        if (status.isOk()) {
             // set the current username
             this.username = proposedUsername;
             // add the client to the list of clients
