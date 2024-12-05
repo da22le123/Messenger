@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import model.messages.MessageType;
 import model.messages.receive.ReceivedBroadcastMessage;
 import model.messages.receive.Status;
+import model.messages.receive.UserlistMessage;
 
 /**
  * Parses messages received from the server
@@ -47,6 +48,12 @@ public class MessageParser {
         objectMapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
 
         return objectMapper.readValue(message, ReceivedBroadcastMessage.class);
+    }
+
+    public static UserlistMessage parseUserlist(String message) throws JsonProcessingException {
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        return objectMapper.readValue(message, UserlistMessage.class);
     }
 
 

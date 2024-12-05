@@ -21,7 +21,8 @@ public class Main {
      */
     public static void printMenu() {
         System.out.println("1. Start chatting");
-        System.out.println("2. Exit");
+        System.out.println("2. Request list of all connected users");
+        System.out.println("3. Exit");
     }
 
     /**
@@ -34,7 +35,7 @@ public class Main {
     public static void selectOption(Scanner sc, Client client) throws InterruptedException, IOException {
         int option = -1;
 
-        while (option < 1 || option > 3) {
+        while (option < 1 || option > 4) {
             System.out.println("Select an option: ");
             printMenu();
             option = sc.nextInt();
@@ -46,6 +47,10 @@ public class Main {
                 break;
             }
             case 2: {
+                client.requestUserList();
+                break;
+            }
+            case 3: {
                 client.exit();
                 break;
             }

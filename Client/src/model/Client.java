@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import model.messages.*;
 import model.messages.receive.ReceivedBroadcastMessage;
 import model.messages.receive.Status;
+import model.messages.receive.UserlistMessage;
 import model.messages.send.BroadcastRequest;
 import model.messages.send.EnterRequest;
 import model.messages.send.Sendable;
@@ -24,8 +25,11 @@ public class Client {
     private final ReentrantLock lock;
     private boolean isLoggedIn;
     private final Condition loggedIn;
+    private boolean isResponseReceived;
+    private Condition responseReceived;
     private boolean isInChat;
     private final ArrayList<ReceivedBroadcastMessage> unseenMessages;
+    private final ArrayList<String> connectedUsers;
 
     public Client(String ipAddress, int port) throws IOException, InterruptedException {
         this.socket = setUpSocket(ipAddress, port);
@@ -34,8 +38,10 @@ public class Client {
         isLoggedIn = false;
         lock = new ReentrantLock();
         loggedIn = lock.newCondition();
+        responseReceived = lock.newCondition();
         isInChat = false;
         unseenMessages = new ArrayList<>();
+        connectedUsers = new ArrayList<>();
         setUpListenerThread().start();
         logIn();
     }
@@ -141,6 +147,34 @@ public class Client {
         unseenMessages.clear();
     }
 
+    public void requestUserList() throws InterruptedException {
+        lock.lock();
+        connectedUsers.clear();
+
+        sendMessage(MessageType.USERLIST_REQ.toString());
+
+        while (!isResponseReceived) {
+            responseReceived.await();
+        }
+
+
+        System.out.println("Connected users: \n");
+
+        for (String user : connectedUsers) {
+            // the connected user is this instance of the client app
+            if (user.equals(name)) {
+                System.out.println(user + " (you)");
+                continue;
+            }
+
+            System.out.println(user);
+        }
+
+        System.out.println();
+
+        lock.unlock();
+    }
+
     /**
      * Exits the chat.|
      * Send a BYE message to the server and terminates the program
@@ -171,6 +205,8 @@ public class Client {
 
             case BROADCAST_RESP -> handleBroadcastResponse(parts[1]);
 
+            case USERLIST -> handleUserlist(parts[1]);
+
             case JOINED -> handleUserJoining(parts[1]);
 
             case LEFT -> handleUserLeaving(parts[1]);
@@ -181,6 +217,20 @@ public class Client {
 
             case UNKNOWN_COMMAND -> System.out.println("Unknown command");
         }
+    }
+
+    private void handleUserlist(String payload) throws JsonProcessingException {
+        lock.lock();
+
+        UserlistMessage userlistMessage = MessageParser.parseUserlist(payload);
+
+        connectedUsers.clear();
+        connectedUsers.addAll(userlistMessage.users());
+
+        isResponseReceived = true;
+        responseReceived.signal();
+
+        lock.unlock();
     }
 
     private void handleUserJoining(String message) throws JsonProcessingException {

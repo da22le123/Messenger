@@ -14,6 +14,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -72,8 +74,17 @@ public class ClientConnection {
             case ENTER -> handleEnter(parts[1]);
             case PONG -> handlePong();
             case BROADCAST_REQ -> handleBroadcast(parts[1]);
+            case USERLIST_REQ -> handleUserlist();
             case BYE -> handleBye();
         }
+    }
+
+    private void handleUserlist() {
+        List<String> usernames =  clientManager.getClients().stream()
+                .map(ClientConnection::getUsername)
+                .toList();
+
+        sendMessage(new UserlistMessage(usernames));
     }
 
     private void handleBroadcast(String payload) throws JsonProcessingException {

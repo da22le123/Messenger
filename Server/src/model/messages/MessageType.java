@@ -12,6 +12,8 @@ public enum MessageType {
     BROADCAST,
     BROADCAST_REQ,
     BROADCAST_RESP,
+    USERLIST_REQ,
+    USERLIST,
     JOINED,
     LEFT,
     BYE,
