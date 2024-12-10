@@ -2,6 +2,9 @@ package protocoltests.protocol.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import model.messages.receive.DmRequest;
+import model.messages.send.DirectMessage;
+import model.messages.send.Response;
 import protocoltests.protocol.messages.*;
 
 import java.util.HashMap;
@@ -12,6 +15,9 @@ public class Utils {
     private final static ObjectMapper mapper = new ObjectMapper();
     private final static Map<Class<?>, String> objToNameMapping = new HashMap<>();
     static {
+        objToNameMapping.put(DmRequest.class, "DM_REQ");
+        objToNameMapping.put(DmResponse.class, "DM_RESP");
+        objToNameMapping.put(DirectMessage.class, "DM");
         objToNameMapping.put(Enter.class, "ENTER");
         objToNameMapping.put(EnterResp.class, "ENTER_RESP");
         objToNameMapping.put(BroadcastReq.class, "BROADCAST_REQ");

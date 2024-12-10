@@ -22,9 +22,8 @@ public class Main {
     public static void printMenu() {
         System.out.println("1. Start chatting");
         System.out.println("2. Request list of all connected users");
-        System.out.println("3. Send a direct message");
-        System.out.println("4. Play rock-paper-scissors");
-        System.out.println("5. Exit");
+        System.out.println("3. Play rock-paper-scissors");
+        System.out.println("4. Exit");
     }
 
     /**
@@ -53,9 +52,9 @@ public class Main {
                 break;
             }
             case 3: {
-                client.sendDirectMessage();
+                System.out.println("play rock-paper-scissors");
             }
-            case 5: {
+            case 4: {
                 client.exit();
                 break;
             }

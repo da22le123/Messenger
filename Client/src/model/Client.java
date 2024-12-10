@@ -1,13 +1,11 @@
 package model;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import model.handlers.BroadcastHandler;
+import model.handlers.ChatHandler;
 import model.handlers.EnterHandler;
 import model.messages.MessageType;
 import model.messages.receive.ReceivedBroadcastMessage;
-import model.messages.receive.Status;
 import model.messages.receive.UserlistMessage;
-import model.messages.send.EnterRequest;
 import model.messages.send.Sendable;
 import utils.MessageParser;
 
@@ -17,7 +15,6 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.Scanner;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -31,10 +28,9 @@ public class Client {
     private final Condition loggedIn;
     private boolean isResponseReceived;
     private Condition responseReceived;
-    private boolean isInChat;
     private final ArrayList<ReceivedBroadcastMessage> unseenMessages;
     private final ArrayList<String> connectedUsers;
-    private final BroadcastHandler broadcastHandler;
+    private final ChatHandler chatHandler;
     private final EnterHandler enterHandler;
 
     public Client(String ipAddress, int port) throws IOException, InterruptedException {
@@ -45,10 +41,9 @@ public class Client {
         lock = new ReentrantLock();
         loggedIn = lock.newCondition();
         responseReceived = lock.newCondition();
-        isInChat = false;
         unseenMessages = new ArrayList<>();
         connectedUsers = new ArrayList<>();
-        broadcastHandler = new BroadcastHandler(out);
+        chatHandler = new ChatHandler(out);
         enterHandler = new EnterHandler(out);
         setUpListenerThread().start();
         logIn();
@@ -109,8 +104,8 @@ public class Client {
         enterHandler.logIn();
     }
 
-    public void startChatting() throws JsonProcessingException {
-        broadcastHandler.startChatting();
+    public void startChatting() throws JsonProcessingException, InterruptedException {
+        chatHandler.startChatting();
     }
 
     public void requestUserList() throws InterruptedException {
@@ -178,11 +173,15 @@ public class Client {
 
             case ENTER_RESP -> enterHandler.handleEnterResponse(parts[1]);
 
-            case BROADCAST -> broadcastHandler.handleBroadcast(parts[1]);
+            case BROADCAST -> chatHandler.handleBroadcast(parts[1]);
 
-            case BROADCAST_RESP -> broadcastHandler.handleBroadcastResponse(parts[1]);
+            case BROADCAST_RESP -> chatHandler.handleBroadcastResponse(parts[1]);
 
             case USERLIST -> handleUserlist(parts[1]);
+
+            case DM -> chatHandler.handleDirectMessage(parts[1]);
+
+            case DM_RESP -> chatHandler.handleDirectMessageResponse(parts[1]);
 
             case JOINED -> enterHandler.handleUserJoining(parts[1]);
 
@@ -221,11 +220,6 @@ public class Client {
         lock.unlock();
     }
 
-//    private void handleUserJoining(String message) throws JsonProcessingException {
-//        ReceivedBroadcastMessage parsedMessage = MessageParser.parseMessage(message);
-//        System.out.println(parsedMessage.username() + " has joined the chat.");
-//    }
-
     /**
      * Handles the user leaving message received from the server.
      * Prints a message to the console that the user has left the chat.
@@ -238,26 +232,4 @@ public class Client {
         System.out.println(parsedMessage.username() + " has left the chat.");
     }
 
-
-    public void sendDirectMessage() throws JsonProcessingException, InterruptedException {
-        lock.lock();
-        Scanner sc = new Scanner(System.in);
-
-        System.out.println("Enter the username of the user you want to send a message to: ");
-        String recipient = sc.nextLine();
-
-        System.out.println("Enter the message: ");
-        String message = sc.nextLine();
-
-        sendMessage(new model.messages.send.DirectMessageRequest(recipient, message));
-
-        while (!isResponseReceived) {
-            responseReceived.await();
-        }
-        lock.unlock();
-    }
-
-    private void handleDirectMessage(String payload) {
-
-    }
 }

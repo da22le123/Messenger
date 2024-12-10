@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import model.messages.MessageType;
 import model.messages.messagefactories.StatusFactory;
 import model.messages.receive.BroadcastRequest;
+import model.messages.receive.DmRequest;
 import model.messages.receive.EnterRequest;
 import model.messages.send.*;
 import utils.MessageParser;
@@ -61,7 +62,7 @@ public class ClientConnection {
 
 
             } catch (IOException e) {
-               throw new RuntimeException(e);
+
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -79,7 +80,30 @@ public class ClientConnection {
             case PONG -> handlePong();
             case BROADCAST_REQ -> handleBroadcast(parts[1]);
             case USERLIST_REQ -> handleUserlist();
+            case DM_REQ -> handleDmRequest(parts[1]);
             case BYE -> handleBye();
+        }
+    }
+
+    private void handleDmRequest(String payload) throws JsonProcessingException {
+        DmRequest dmRequest = DmRequest.fromJson(payload);
+
+        boolean isLoggedIn = this.username != null;
+        boolean recipientExists = clientManager.hasClient(dmRequest.recipient());
+
+        Status status = new StatusFactory().createDmResponseStatus(isLoggedIn, recipientExists);
+
+        // send a response to the client that requested the DM
+        if (status != null) {
+            sendMessage(new Response(MessageType.DM_RESP, status));
+        } else {
+            throw new RuntimeException("No response was created by the factory.");
+        }
+
+        // send the DM to the client that is supposed to receive it
+        if (status.isOk()) {
+            ClientConnection recipient = clientManager.getClientByUsername(dmRequest.recipient());
+            recipient.sendMessage(new DirectMessage(this.username, dmRequest.message()));
         }
     }
 

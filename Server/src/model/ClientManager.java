@@ -34,6 +34,10 @@ public class ClientManager {
         return client != null;
     }
 
+    public synchronized ClientConnection getClientByUsername(String username) {
+        return clients.stream().filter(clientConnection -> clientConnection.getUsername().equals(username)).findAny().orElse(null);
+    }
+
     public synchronized List<ClientConnection> getClients() {
         return clients;
     }

@@ -35,4 +35,17 @@ public class StatusFactory {
         // all checks passed
         return new Status("OK", 0);
     }
+
+    public Status createDmResponseStatus(boolean isLoggedIn, boolean recipientExists) {
+        if (!isLoggedIn) {
+            return new Status("ERROR", 4000);
+        }
+
+        if (!recipientExists) {
+            return new Status("ERROR", 4001);
+        }
+
+        // all checks passed
+        return new Status("OK", 0);
+    }
 }
