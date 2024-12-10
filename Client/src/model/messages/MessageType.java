@@ -19,6 +19,9 @@ public enum MessageType {
     HANGUP,
     USERLIST_REQ,
     USERLIST,
+    DM_REQ,
+    DM_RESP,
+    DM,
     PARSE_ERROR,
     UNKNOWN_COMMAND
 }

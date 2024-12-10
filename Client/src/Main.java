@@ -22,7 +22,9 @@ public class Main {
     public static void printMenu() {
         System.out.println("1. Start chatting");
         System.out.println("2. Request list of all connected users");
-        System.out.println("3. Exit");
+        System.out.println("3. Send a direct message");
+        System.out.println("4. Play rock-paper-scissors");
+        System.out.println("5. Exit");
     }
 
     /**
@@ -35,7 +37,7 @@ public class Main {
     public static void selectOption(Scanner sc, Client client) throws InterruptedException, IOException {
         int option = -1;
 
-        while (option < 1 || option > 4) {
+        while (option < 1 || option > 5) {
             System.out.println("Select an option: ");
             printMenu();
             option = sc.nextInt();
@@ -51,6 +53,9 @@ public class Main {
                 break;
             }
             case 3: {
+                client.sendDirectMessage();
+            }
+            case 5: {
                 client.exit();
                 break;
             }

@@ -205,20 +205,20 @@ Sends a message from a client to another specific client. Other clients do not r
 ## 8.1 Happy flow
 
 ```
-C -> S: DM_REQ {"recipient":"<username>","message":"<message>"}
+C -> S: DM_REQ {"recipient":"<recipient_username>","message":"<message>"}
 S -> C: DM_RESP {"status":"OK"}
 ```
 
 - `<message>`: the message that must be sent.
-- `<username>`: the username of the user that must receive the message.
+- `<recipient_username>`: the username of the user that must receive the message.
 
 Specified client receives the message as follows:
 
 ```
-S -> C: DM {"sender":"<username>","message":"<message>"}   
+S -> C: DM {"sender":"<sender_username>","message":"<message>"}   
 ```   
 
-- `<username>`: the username of the user that is sending the message.
+- `<sender_username>`: the username of the user that is sending the message.
 
 ## 8.2 Unhappy flow
 

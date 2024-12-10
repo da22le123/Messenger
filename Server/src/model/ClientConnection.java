@@ -58,13 +58,17 @@ public class ClientConnection {
                     System.out.println("Received message: " + clientMessage);
                     processMessage(clientMessage);
                 }
+
+
             } catch (IOException e) {
+               throw new RuntimeException(e);
+            } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
         }).start();
     }
 
-    private void processMessage(String clientMessage) throws JsonProcessingException {
+    private void processMessage(String clientMessage) throws JsonProcessingException, InterruptedException {
         // Split the message into two parts: the type and the rest
         String[] parts = clientMessage.split(" ", 2); // Limit to 2 splits
         // parse the message type
@@ -106,8 +110,21 @@ public class ClientConnection {
         }
     }
 
-    private void handleBye() {
-        // todo: handle the BYE message
+    private void handleBye() throws JsonProcessingException, InterruptedException {
+        sendMessage(new Response(MessageType.BYE_RESP, new Status("OK", 0)));
+        clientManager.sendMessageToAllClients(new LeftMessage(this.username), this);
+
+        clientManager.removeClient(this);
+        scheduler.shutdownNow();
+        scheduler.awaitTermination(10, TimeUnit.SECONDS);
+
+        try {
+            socket.close();
+            out.close();
+            in.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void handlePong() {
@@ -137,6 +154,8 @@ public class ClientConnection {
                 }
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
             }
         }
 
@@ -150,8 +169,9 @@ public class ClientConnection {
     }
 
 
-    private void hangUp() throws InterruptedException {
+    private void hangUp() throws InterruptedException, JsonProcessingException {
         sendMessage(new HangupMessage(7000));
+        clientManager.sendMessageToAllClients(new LeftMessage(this.username), this);
 
         clientManager.removeClient(this);
         scheduler.shutdownNow();
