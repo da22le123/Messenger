@@ -79,7 +79,7 @@ public class DirectMessagesTests {
         receiveLineWithTimeout(inUser2); //OK
         receiveLineWithTimeout(inUser1); //JOINED
 
-        //send BROADCAST from user 1
+        //send DM from user 1
         outUser1.println(Utils.objectToMessage(new DmRequest("tc58user2", "Hello user2")));
         outUser1.flush();
 
@@ -108,7 +108,7 @@ public class DirectMessagesTests {
         receiveLineWithTimeout(inUser2); //OK
         receiveLineWithTimeout(inUser1); //JOINED
 
-        //send BROADCAST from user 1
+        //send DM from user 1
         outUser1.println(Utils.objectToMessage(new DmRequest("nonexistentUser", "Hello user2")));
         outUser1.flush();
 
@@ -139,7 +139,7 @@ public class DirectMessagesTests {
         receiveLineWithTimeout(inUser1); //JOINED
         receiveLineWithTimeout(inUser2); //JOINED
 
-        //send BROADCAST from user 1
+        //send DM from user 1
         outUser1.println(Utils.objectToMessage(new DmRequest("tc60user2", "Hello user2")));
         outUser1.flush();
 

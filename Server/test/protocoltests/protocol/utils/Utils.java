@@ -15,6 +15,8 @@ public class Utils {
     private final static ObjectMapper mapper = new ObjectMapper();
     private final static Map<Class<?>, String> objToNameMapping = new HashMap<>();
     static {
+        objToNameMapping.put(UserListRequest.class, "USERLIST_REQ");
+        objToNameMapping.put(UserList.class, "USERLIST");
         objToNameMapping.put(DmRequest.class, "DM_REQ");
         objToNameMapping.put(DmResponse.class, "DM_RESP");
         objToNameMapping.put(DirectMessage.class, "DM");
