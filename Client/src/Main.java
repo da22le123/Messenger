@@ -52,7 +52,7 @@ public class Main {
                 break;
             }
             case 3: {
-                System.out.println("play rock-paper-scissors");
+                client.startRpsGame();
             }
             case 4: {
                 client.exit();

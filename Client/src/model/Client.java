@@ -5,7 +5,9 @@ import model.handlers.ChatHandler;
 import model.handlers.EnterHandler;
 import model.messages.MessageType;
 import model.messages.receive.ReceivedBroadcastMessage;
+import model.messages.receive.RpsResult;
 import model.messages.receive.UserlistMessage;
+import model.messages.send.RpsRequest;
 import model.messages.send.Sendable;
 import utils.MessageParser;
 
@@ -15,6 +17,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Scanner;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -135,6 +138,36 @@ public class Client {
         lock.unlock();
     }
 
+    public void startRpsGame() throws JsonProcessingException {
+        lock.lock();
+        Scanner sc = new Scanner(System.in);
+
+        System.out.println("Enter the name of the user you want to play with: ");
+        String opponent = sc.nextLine();
+
+        System.out.println("Enter your choice (rock - 0, paper - 1, or scissors - 2): ");
+        int choice = Integer.parseInt(sc.nextLine());
+
+        sendMessage(new RpsRequest(opponent, choice));
+        lock.unlock();
+    }
+
+    public void handleRpsResult(String payload) throws JsonProcessingException {
+        lock.lock();
+
+        RpsResult rpsResult = RpsResult.fromJson(payload);
+        if (!rpsResult.status().isOk()) {
+            int errorCode = rpsResult.status().code();
+        }
+
+
+        lock.unlock();
+    }
+
+    public void handleRps(String payload) {
+
+    }
+
     /**
      * Exits the chat.
      * Send a BYE message to the server and terminates the program
@@ -182,6 +215,10 @@ public class Client {
             case DM -> chatHandler.handleDirectMessage(parts[1]);
 
             case DM_RESP -> chatHandler.handleDirectMessageResponse(parts[1]);
+
+            case RPS_RESULT -> handleRpsResult(parts[1]);
+
+            case RPS -> handleRps(parts[1]);
 
             case JOINED -> enterHandler.handleUserJoining(parts[1]);
 

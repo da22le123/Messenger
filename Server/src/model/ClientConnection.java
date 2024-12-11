@@ -3,9 +3,7 @@ package model;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import model.messages.MessageType;
 import model.messages.messagefactories.StatusFactory;
-import model.messages.receive.BroadcastRequest;
-import model.messages.receive.DmRequest;
-import model.messages.receive.EnterRequest;
+import model.messages.receive.*;
 import model.messages.send.*;
 import utils.MessageParser;
 import utils.ValidationUtils;
@@ -15,7 +13,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -35,6 +32,8 @@ public class ClientConnection {
 
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final ReentrantLock lock = new ReentrantLock();
+    private final Condition rpsResponseReceived = lock.newCondition();
+    private volatile boolean isRpsResponseReceived = false;
     private final Condition pongReceived = lock.newCondition();
     private volatile boolean isPongReceived = false;
     private volatile boolean isPingSent = false;
@@ -81,17 +80,74 @@ public class ClientConnection {
             case BROADCAST_REQ -> handleBroadcast(parts[1]);
             case USERLIST_REQ -> handleUserlist();
             case DM_REQ -> handleDmRequest(parts[1]);
+            case RPS_REQ -> handleRpsRequest(parts[1]);
+            case RPS_RESP -> handleRpsResponse(parts[1]);
             case BYE -> handleBye();
         }
     }
 
+    private void handleRpsRequest(String payload) throws JsonProcessingException, InterruptedException {
+        lock.lock();
+        RpsRequest rpsRequest = RpsRequest.fromJson(payload);
+
+        StatusFactory statusFactory = new StatusFactory(clientManager);
+        Status status = statusFactory.createRpsResultStatus(this.username, rpsRequest.opponent(), rpsRequest.choice());
+        RpsResult rpsResult = new RpsResult(status);
+        if (!rpsResult.getStatus().isOk()) {
+            if (rpsResult.getStatus().code()==3001) {
+                rpsResult.setNowPlaying(clientManager.getNowPlaying());
+            }
+
+            sendMessage(rpsResult);
+            return;
+        }
+
+
+        ClientConnection opponent = clientManager.getClientByUsername(rpsRequest.opponent());
+        opponent.sendMessage(new Rps(this.username));
+        // start a game
+        clientManager.startRpsGame(this.username, rpsRequest.opponent(), rpsRequest.choice());
+
+        while (isRpsResponseReceived) {
+            rpsResponseReceived.await();
+        }
+
+        int opponentChoice = clientManager.getPlayer2Choice();
+
+        status = statusFactory.alterRpsResultStatus(status, opponentChoice);
+
+        if (!status.isOk()) {
+            sendMessage(new RpsResult(status));
+            return;
+        }
+
+        clientManager.calculateGameResult();
+
+        sendMessage(new RpsResult(status, clientManager.getGameResult(), opponentChoice));
+
+        lock.unlock();
+    }
+
+
+    private void handleRpsResponse(String payload) throws JsonProcessingException {
+        lock.lock();
+        RpsResponse rpsResponse = RpsResponse.fromJson(payload);
+        clientManager.addPlayer2Choice(rpsResponse.choice());
+
+        isRpsResponseReceived = true;
+        rpsResponseReceived.signal();
+        lock.unlock();
+    }
+
+
+
+
+
+
     private void handleDmRequest(String payload) throws JsonProcessingException {
         DmRequest dmRequest = DmRequest.fromJson(payload);
 
-        boolean isLoggedIn = this.username != null;
-        boolean recipientExists = clientManager.hasClient(dmRequest.recipient());
-
-        Status status = new StatusFactory().createDmResponseStatus(isLoggedIn, recipientExists);
+        Status status = new StatusFactory(clientManager).createDmResponseStatus(this.username, dmRequest.recipient());
 
         // send a response to the client that requested the DM
         if (status != null) {
@@ -118,10 +174,8 @@ public class ClientConnection {
     private void handleBroadcast(String payload) throws JsonProcessingException {
         BroadcastRequest broadcastRequest = BroadcastRequest.fromJson(payload);
 
-        boolean isLoggedIn = this.username != null;
-
-        StatusFactory statusFactory = new StatusFactory();
-        Status status = statusFactory.createBroadcastResponseStatus(isLoggedIn);
+        StatusFactory statusFactory = new StatusFactory(clientManager);
+        Status status = statusFactory.createBroadcastResponseStatus(this.username);
 
         if (status != null) {
             sendMessage(new Response(MessageType.BROADCAST_RESP, status));
@@ -219,13 +273,8 @@ public class ClientConnection {
         }
 
         String proposedUsername = enterRequest.username();
-
-        boolean hasClient = clientManager.hasClient(proposedUsername);
-        boolean isInvalidUsername = proposedUsername.isEmpty() || !ValidationUtils.isValidUsername(proposedUsername);
-        boolean isLoggedIn = this.username != null;
-
-        StatusFactory statusFactory = new StatusFactory();
-        Status status = statusFactory.createEnterResponseStatus(hasClient, isInvalidUsername, isLoggedIn, proposedUsername);
+        StatusFactory statusFactory = new StatusFactory(clientManager);
+        Status status = statusFactory.createEnterResponseStatus(this.username, proposedUsername);
 
         if (status != null) {
             sendMessage(new Response(MessageType.ENTER_RESP, status));
@@ -240,6 +289,7 @@ public class ClientConnection {
             clientManager.addClient(this);
             // notify all clients that a new client has entered
             clientManager.sendMessageToAllClients(new JoinedMessage(this.username), this);
+
         }
 
         startPingScheduler();

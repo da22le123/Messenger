@@ -320,12 +320,12 @@ Possible `<error code>`:
 
 | Error code | Description                                                                      | Client that receives the message |
 |------------|----------------------------------------------------------------------------------|----------------------------------|
-| 3000       | The client that sends an RPS request is not logged in                            | C1                               |
+| 3000       | The client that sends an RPS request is not logged in.                           | C1                               |
 | 3001       | There is already an RPS game going on on the server.                             | C1                               |
 | 3002       | The client that sends an RPS request specified non existent opponent's username. | C1                               |
-| 3003       | The client that sends an RPS request specified incorrect choice code.            | C1                               |
-| 3004       | The client that receives an RPS specified incorrect choice code.                 | C1 & C2                          |
-| 3005       | Is sent to player if his opponent disconnected.                                  | C1 ˆ C2                          |
+| 3003       | The client sent a request, specifying himself as an opponent.                    | C1                               |
+| 3004       | The client that sends an RPS request specified incorrect choice code.            | C1                               |
+| 3005       | The client that receives an RPS specified incorrect choice code.                 | C1 & C2                          |
 
 
 
