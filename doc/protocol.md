@@ -305,7 +305,7 @@ Depending on the error code, different client participating in the game receives
 S -> C: RPS_RESULT {"status": "ERROR", "code": <error code>}
 ```
 
-In case of the error code 3001: 
+In case of the error code 3001:
 
 ```
 S -> C: RPS_RESULT {"status": "ERROR", "code": <error code>, "now_playing":"{[<username1>, <username2]>}"}
@@ -326,6 +326,122 @@ Possible `<error code>`:
 | 3003       | The client sent a request, specifying himself as an opponent.                    | C1                               |
 | 3004       | The client that sends an RPS request specified incorrect choice code.            | C1                               |
 | 3005       | The client that receives an RPS specified incorrect choice code.                 | C1 & C2                          |
+
+# 10. File transfer
+
+Send a file from one client to another. Client requests to send a file to another client. If the recipient exists and
+accepts the file, the server will send the file to the recipient.
+
+- Client that sends the file: **C1**
+- Client that receives the file: **C2**
+
+## 10.1 Happy flow
+
+### Text based communication, port 1337
+
+C1 sends a request to send a file:
+
+```
+C1 -> S: FILE_REQ {"recipient":"<C2_username>","path":"<path>",filename":"<filename>","hash":"<hash>"}
+```
+
+`<C2_username>` - the username of the recipient of the file.
+`<path>` - the path to the file on the machine of the sender.
+`<filename>` - the name of the file.
+`<hash>` - checksum of the file, calculated with the SHA-256 algorithm.
+
+Server sends a request to C2 accept the file:
+
+```
+S -> C2: FILE {"sender":"<C1_username>","filename":"<filename>"}
+```
+
+C2 sends a response, if the transfer was accepted:
+
+```
+C2 -> S: FILE_RESP {"status":"OK"}
+```
+
+Server sends the response to C1, if the transfer was accepted:
+
+```
+S -> C1: FILE_RESP {"status":"OK"}
+```
+
+Server assigns UUID to these two clients and sends it to both of them:
+
+```
+S -> C1: FILE_UUID {"uuid":"<uuid>"}
+S -> C2: FILE_UUID {"uuid":"<uuid>"}
+```
+
+`<uuid>` - the unique identifier for the file transfer.
+
+### File transfer socket, port 1338
+
+Clients send uuids to the server to establish a connection and authenticate themselves.
+
+C1 sends the uuid through the file transfer socket:
+
+```
+C1 -> S: <uuid>_send
+```
+
+C2 sends the uuid through the file transfer socket:
+
+```
+C2 -> S: <uuid>_receive
+```
+
+`<uuid>` - the unique identifier for the file transfer.
+
+C1 and C2 need to include an ending to the uuid to let the server know which client is the sender and which is the
+receiver. The ending is `_send` for C1 and `_receive` for C2.
+
+Then C1 sends the bytes of the file to the server and server transfers them to C2:
+
+```
+C1 -> S: file_bytes
+S -> C2: file_bytes
+```
+
+## 10.2 Unhappy flow
+
+### Text based communication, port 1337
+
+Client sends a request to send a file:
+
+```
+C1 -> S: FILE_REQ {"recipient":"<C2_username>","path":"<path>",filename":"<filename>","hash":"<hash>"}
+```
+
+`<C2_username>` - the username of the recipient of the file.
+`<path>` - the path to the file on the machine of the sender.
+`<filename>` - the name of the file.
+`<hash>` - checksum of the file, calculated with the SHA-256 algorithm.
+
+Server responds with an error message:
+
+```
+S -> C1: FILE_RESP {"status":"ERROR", "code": <error code>}
+```
+
+Possible `<error code>`:
+
+| Error code | Description                                                                       |
+|------------|-----------------------------------------------------------------------------------|
+| 9000       | The client that sends a file request is not logged in.                            |
+| 9001       | The client that sends a file request specified non existent recipient's username. |
+| 9002       | The client that sends a file request specified incorrect path to the file.        |
+| 9003       | The client that receives the file rejected the file transfer.                     |
+
+
+
+
+
+
+
+
 
 
 
