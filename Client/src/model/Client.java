@@ -5,9 +5,11 @@ import model.handlers.ChatHandler;
 import model.handlers.EnterHandler;
 import model.messages.MessageType;
 import model.messages.receive.ReceivedBroadcastMessage;
+import model.messages.receive.Rps;
 import model.messages.receive.RpsResult;
 import model.messages.receive.UserlistMessage;
 import model.messages.send.RpsRequest;
+import model.messages.send.RpsResponse;
 import model.messages.send.Sendable;
 import utils.MessageParser;
 
@@ -96,7 +98,7 @@ public class Client {
 
                 // handle the case when the server hangs up
                 System.exit(0);
-            } catch (IOException e) {
+            } catch (IOException | InterruptedException e) {
                 System.out.println(e.getMessage());
             }
         });
@@ -138,8 +140,7 @@ public class Client {
         lock.unlock();
     }
 
-    public void startRpsGame() throws JsonProcessingException {
-        lock.lock();
+    public void startRpsGame() throws JsonProcessingException, InterruptedException {
         Scanner sc = new Scanner(System.in);
 
         System.out.println("Enter the name of the user you want to play with: ");
@@ -149,23 +150,53 @@ public class Client {
         int choice = Integer.parseInt(sc.nextLine());
 
         sendMessage(new RpsRequest(opponent, choice));
-        lock.unlock();
     }
 
     public void handleRpsResult(String payload) throws JsonProcessingException {
-        lock.lock();
-
         RpsResult rpsResult = RpsResult.fromJson(payload);
         if (!rpsResult.status().isOk()) {
             int errorCode = rpsResult.status().code();
+            switch (errorCode) {
+                case 3000 -> System.out.println("You are not logged in.");
+                case 3001 -> System.out.println("There is already a game in progress. Users playing: " + rpsResult.nowPlaying()[0] + ", " + rpsResult.nowPlaying()[1]);
+                case 3002 -> System.out.println("There is no user with the username you specified as your opponent.");
+                case 3003 -> System.out.println("You cannot play with yourself.");
+                case 3004 -> System.out.println("You specified an incorrect choice code.");
+                case 3005 -> System.out.println("The user you specified as your opponent specified an incorrect choice code.");
+            }
+            return;
         }
 
+        String opponentChoice ;
 
-        lock.unlock();
+        switch (rpsResult.opponentChoice()) {
+            case 0 -> opponentChoice = "rock";
+            case 1 -> opponentChoice = "paper";
+            case 2 -> opponentChoice = "scissors";
+            default -> throw new IllegalStateException("Unexpected value: " + rpsResult.opponentChoice());
+        }
+
+        switch (rpsResult.gameResult()) {
+            case 0 -> System.out.println("You won! Opponent chose: " + rpsResult.opponentChoice());
+            case 1 -> System.out.println("You lost! Opponent chose: " + rpsResult.opponentChoice());
+            case 2 -> System.out.println("It's a tie!");
+        }
     }
 
-    public void handleRps(String payload) {
-
+    public void handleRps(String payload) throws InterruptedException, JsonProcessingException {
+        Rps rps = Rps.fromJson(payload);
+        if (chatHandler.isInChat()) {
+            System.out.println("You received a request to play Rock-Paper-Scissors.against " + rps.opponent() + ". Type /rps <your_choice> (rock - 0, paper - 1, or scissors - 2) in order to respond.");
+        } else {
+            System.out.println("You received a request to play Rock-Paper-Scissors against " + rps.opponent() + ". Enter the chat first and type /rps <your_choice> (rock - 0, paper - 1, or scissors - 2).");
+        }//        Rps rps = Rps.fromJson(payload);
+////
+//
+//        System.out.println("You received a request to play Rock-Paper-Scissors against " + rps.opponent() + ". Enter your choice (rock - 0, paper - 1, or scissors - 2): ");
+//        Scanner sc = new Scanner(System.in);
+//        int choice = Integer.parseInt(sc.nextLine());
+//
+//        sendMessage(new RpsResponse(choice));
     }
 
     /**
@@ -195,7 +226,7 @@ public class Client {
      * @param message The message received from the server
      * @throws JsonProcessingException
      */
-    private void processMessage(String message) throws JsonProcessingException {
+    private void processMessage(String message) throws JsonProcessingException, InterruptedException {
         // Split the message into two parts: the type and the rest
         String[] parts = message.split(" ", 2); // Limit to 2 splits
         // parse the message type

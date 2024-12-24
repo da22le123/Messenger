@@ -64,7 +64,8 @@ public class StatusFactory {
     }
 
     /**
-     *
+     *  Create a status object for the result of the RPS game
+     *  based on the choice of the client that sends the RPS request
      * @param C1 Username of the client that sends the RPS request
      * @param C2 Username of the client that receives the RPS request
      * @param choice
@@ -97,12 +98,20 @@ public class StatusFactory {
         return new Status("OK", 0);
     }
 
-    public Status alterRpsResultStatus(Status currentStatus, int opponentChoice) {
+
+    /**
+     * Create a status object for the result of the RPS game
+     * based on choice of the client that receives the RPS request
+     * @param opponentChoice
+     * @return
+     */
+    public Status createRpsResultStatus(int opponentChoice) {
         if (opponentChoice < 0 || opponentChoice > 2) {
             return new Status("ERROR", 3005);
         }
 
-        return currentStatus;
+        // all checks passed
+        return new Status("OK", 0);
     }
 
 }

@@ -1,6 +1,7 @@
 import model.Client;
 
 import java.io.*;
+import java.util.InputMismatchException;
 import java.util.Scanner;
 
 public class Main {
@@ -36,11 +37,16 @@ public class Main {
     public static void selectOption(Scanner sc, Client client) throws InterruptedException, IOException {
         int option = -1;
 
-        while (option < 1 || option > 5) {
+        do {
             System.out.println("Select an option: ");
             printMenu();
-            option = sc.nextInt();
-        }
+            try {
+                option = sc.nextInt();
+            } catch (InputMismatchException e) {
+                System.out.println("Invalid input");
+                sc.nextLine();
+            }
+        } while (option < 1 || option > 5);
 
         switch (option) {
             case 1: {
@@ -53,6 +59,7 @@ public class Main {
             }
             case 3: {
                 client.startRpsGame();
+                break; 
             }
             case 4: {
                 client.exit();

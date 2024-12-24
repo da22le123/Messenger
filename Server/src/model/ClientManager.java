@@ -1,7 +1,9 @@
 package model;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import model.messages.send.RpsResult;
 import model.messages.send.Sendable;
+import model.messages.send.Status;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -81,6 +83,9 @@ public class ClientManager {
         currentRpsGame.setChoicePlayer2(choicePlayer2);
     }
 
+    public synchronized int getPlayer1Choice() {
+        return currentRpsGame.getChoicePlayer1();
+    }
     public synchronized int getPlayer2Choice() {
         return currentRpsGame.getChoicePlayer2();
     }
@@ -91,5 +96,27 @@ public class ClientManager {
 
     public synchronized int getGameResult() {
         return currentRpsGame.getGameResult();
+    }
+
+    public synchronized void sendRpsResultToPlayers(Status status) throws JsonProcessingException {
+        int result = currentRpsGame.getGameResult();
+        PrintWriter player1 = currentRpsGame.getPlayer1().getPrintWriter();
+        PrintWriter player2 = currentRpsGame.getPlayer2().getPrintWriter();
+        RpsResult rpsResultForPlayer1 = new RpsResult(status, result, currentRpsGame.getChoicePlayer2());
+        RpsResult rpsResultForPlayer2 = new RpsResult(status, result, currentRpsGame.getChoicePlayer1());
+
+        player1.println(rpsResultForPlayer1.toJson());
+        player2.println(rpsResultForPlayer2.toJson());
+
+        System.out.println("Sending message: " + rpsResultForPlayer1.toJson());
+
+    }
+
+    public void abortRpsGame() {
+        currentRpsGame = null;
+    }
+
+    public boolean isPlayingNow(ClientConnection client) {
+        return currentRpsGame != null && (currentRpsGame.getPlayer1().equals(client) || currentRpsGame.getPlayer2().equals(client));
     }
 }

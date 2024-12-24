@@ -59,9 +59,10 @@ public class ClientConnection {
                     processMessage(clientMessage);
                 }
 
-
+                // todo cleanup
+                cleanUp();
             } catch (IOException e) {
-
+                cleanUp();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -87,7 +88,6 @@ public class ClientConnection {
     }
 
     private void handleRpsRequest(String payload) throws JsonProcessingException, InterruptedException {
-        lock.lock();
         RpsRequest rpsRequest = RpsRequest.fromJson(payload);
 
         StatusFactory statusFactory = new StatusFactory(clientManager);
@@ -107,42 +107,25 @@ public class ClientConnection {
         opponent.sendMessage(new Rps(this.username));
         // start a game
         clientManager.startRpsGame(this.username, rpsRequest.opponent(), rpsRequest.choice());
-
-        while (isRpsResponseReceived) {
-            rpsResponseReceived.await();
-        }
-
-        int opponentChoice = clientManager.getPlayer2Choice();
-
-        status = statusFactory.alterRpsResultStatus(status, opponentChoice);
-
-        if (!status.isOk()) {
-            sendMessage(new RpsResult(status));
-            return;
-        }
-
-        clientManager.calculateGameResult();
-
-        sendMessage(new RpsResult(status, clientManager.getGameResult(), opponentChoice));
-
-        lock.unlock();
     }
 
 
     private void handleRpsResponse(String payload) throws JsonProcessingException {
-        lock.lock();
         RpsResponse rpsResponse = RpsResponse.fromJson(payload);
         clientManager.addPlayer2Choice(rpsResponse.choice());
+        StatusFactory statusFactory = new StatusFactory(clientManager);
+        Status status = statusFactory.createRpsResultStatus(rpsResponse.choice());
 
-        isRpsResponseReceived = true;
-        rpsResponseReceived.signal();
-        lock.unlock();
+        if (!status.isOk()) {
+            sendMessage(new RpsResult(status));
+            clientManager.abortRpsGame();
+            return;
+        }
+
+        clientManager.calculateGameResult();
+        clientManager.sendRpsResultToPlayers(status);
+        clientManager.abortRpsGame();
     }
-
-
-
-
-
 
     private void handleDmRequest(String payload) throws JsonProcessingException {
         DmRequest dmRequest = DmRequest.fromJson(payload);
@@ -205,6 +188,27 @@ public class ClientConnection {
         }
     }
 
+    private void cleanUp() {
+        if (clientManager.isPlayingNow(this)) {
+            clientManager.abortRpsGame();
+        }
+        clientManager.removeClient(this);
+        scheduler.shutdownNow();
+        try {
+            scheduler.awaitTermination(10, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        try {
+            socket.close();
+            out.close();
+            in.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public void handlePong() {
         lock.lock();
         try {
@@ -251,17 +255,7 @@ public class ClientConnection {
         sendMessage(new HangupMessage(7000));
         clientManager.sendMessageToAllClients(new LeftMessage(this.username), this);
 
-        clientManager.removeClient(this);
-        scheduler.shutdownNow();
-        scheduler.awaitTermination(10, TimeUnit.SECONDS);
-
-        try {
-            socket.close();
-            out.close();
-            in.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        cleanUp();
     }
 
     private void handleEnter(String payload) throws JsonProcessingException {

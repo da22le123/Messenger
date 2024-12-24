@@ -7,6 +7,7 @@ import model.messages.receive.ReceivedDirectMessage;
 import model.messages.receive.Status;
 import model.messages.send.BroadcastRequest;
 import model.messages.send.DmRequest;
+import model.messages.send.RpsResponse;
 import utils.MessageParser;
 
 import java.io.PrintWriter;
@@ -70,6 +71,13 @@ public class ChatHandler {
                 String recipient = parts[1];
                 String dm = parts[2];
                 sendDirectMessage(new DmRequest(recipient, dm));
+                continue;
+            }
+
+            if (message.startsWith("/rps")) {
+                String[] parts = message.split(" ", 2);
+                int choice = Integer.parseInt(parts[1]);
+                messageSender.sendMessage(new RpsResponse(choice));
                 continue;
             }
 
@@ -162,6 +170,10 @@ public class ChatHandler {
             responseReceived.await();
         }
         lock.unlock();
+    }
+
+    public boolean isInChat() {
+        return isInChat;
     }
 
 
