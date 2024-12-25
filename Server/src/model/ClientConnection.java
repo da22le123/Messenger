@@ -117,7 +117,7 @@ public class ClientConnection {
         Status status = statusFactory.createRpsResultStatus(rpsResponse.choice());
 
         if (!status.isOk()) {
-            sendMessage(new RpsResult(status));
+            clientManager.sendRpsResultToPlayers(status);
             clientManager.abortRpsGame();
             return;
         }

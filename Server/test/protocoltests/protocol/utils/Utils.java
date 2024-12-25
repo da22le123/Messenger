@@ -30,7 +30,11 @@ public class Utils {
         objToNameMapping.put(Pong.class, "PONG");
         objToNameMapping.put(PongError.class, "PONG_ERROR");
         objToNameMapping.put(Ready.class, "READY");
-        objToNameMapping.put(Ping.class, "PING");
+        objToNameMapping.put(Rps.class, "RPS");
+        objToNameMapping.put(RpsRequest.class, "RPS_REQ");
+        objToNameMapping.put(RpsResponse.class, "RPS_RESP");
+        objToNameMapping.put(RpsResult.class, "RPS_RESULT");
+
     }
 
     public static String objectToMessage(Object object) throws JsonProcessingException {

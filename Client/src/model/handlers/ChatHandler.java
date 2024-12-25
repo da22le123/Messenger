@@ -20,6 +20,7 @@ public class ChatHandler {
     private final MessageSender messageSender;
     private final PrintWriter out;
     boolean isInChat = false;
+    boolean isReceivedRps = false;
     private final ArrayList<ReceivedBroadcastMessage> unseenMessages;
     private final ArrayList<ReceivedDirectMessage> unseenDirectMessages;
 
@@ -45,7 +46,7 @@ public class ChatHandler {
     public void startChatting() throws JsonProcessingException, InterruptedException {
         Scanner sc = new Scanner(System.in);
 
-        System.out.println("The chat with other users has started. Type /quitchat to exit the chat. \n " + "Type /dm <recipient> <message> to send a direct message to a user.");
+        System.out.println("The chat with other users has started. Type /quitchat to exit the chat.\n" + "Type /dm <recipient> <message> to send a direct message to a user.\n" + "Type /rps <choice> to play rock-paper-scissors to respond the incoming game request.");
         isInChat = true;
 
         if (!unseenDirectMessages.isEmpty()) {
@@ -75,9 +76,15 @@ public class ChatHandler {
             }
 
             if (message.startsWith("/rps")) {
+                if (!isReceivedRps) {
+                    System.out.println("You have no incoming game requests.");
+                    continue;
+                }
+
                 String[] parts = message.split(" ", 2);
                 int choice = Integer.parseInt(parts[1]);
                 messageSender.sendMessage(new RpsResponse(choice));
+                setReceivedRps(false);
                 continue;
             }
 
@@ -174,6 +181,10 @@ public class ChatHandler {
 
     public boolean isInChat() {
         return isInChat;
+    }
+
+    public void setReceivedRps(boolean receivedRps) {
+        isReceivedRps = receivedRps;
     }
 
 

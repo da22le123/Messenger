@@ -29,9 +29,8 @@ public class Client {
     private final BufferedReader in;
     private String name;
     private final ReentrantLock lock;
-    private boolean isLoggedIn;
-    private final Condition loggedIn;
     private boolean isResponseReceived;
+    private int currentStateOfGame; // 0 - no game, 1 - sender, 2 - receiver (rock-paper-scissors)
     private Condition responseReceived;
     private final ArrayList<ReceivedBroadcastMessage> unseenMessages;
     private final ArrayList<String> connectedUsers;
@@ -42,9 +41,7 @@ public class Client {
         this.socket = setUpSocket(ipAddress, port);
         this.out = new PrintWriter(socket.getOutputStream(), true);
         this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        isLoggedIn = false;
         lock = new ReentrantLock();
-        loggedIn = lock.newCondition();
         responseReceived = lock.newCondition();
         unseenMessages = new ArrayList<>();
         connectedUsers = new ArrayList<>();
@@ -150,6 +147,7 @@ public class Client {
         int choice = Integer.parseInt(sc.nextLine());
 
         sendMessage(new RpsRequest(opponent, choice));
+        currentStateOfGame = 1; // this client is sender
     }
 
     public void handleRpsResult(String payload) throws JsonProcessingException {
@@ -176,11 +174,23 @@ public class Client {
             default -> throw new IllegalStateException("Unexpected value: " + rpsResult.opponentChoice());
         }
 
-        switch (rpsResult.gameResult()) {
-            case 0 -> System.out.println("You won! Opponent chose: " + rpsResult.opponentChoice());
-            case 1 -> System.out.println("You lost! Opponent chose: " + rpsResult.opponentChoice());
+        int gameResult = rpsResult.gameResult();
+
+        // needed to switch the result of the game if the client is the receiver
+        // in order to display the correct message
+        if (currentStateOfGame == 2) {
+            if (gameResult == 0)
+                gameResult = 1;
+            else if (gameResult == 1)
+                gameResult = 0;
+        }
+
+        switch (gameResult) {
+            case 0 -> System.out.println("You won! Opponent chose: " + opponentChoice);
+            case 1 -> System.out.println("You lost! Opponent chose: " + opponentChoice);
             case 2 -> System.out.println("It's a tie!");
         }
+
     }
 
     public void handleRps(String payload) throws InterruptedException, JsonProcessingException {
@@ -189,14 +199,9 @@ public class Client {
             System.out.println("You received a request to play Rock-Paper-Scissors.against " + rps.opponent() + ". Type /rps <your_choice> (rock - 0, paper - 1, or scissors - 2) in order to respond.");
         } else {
             System.out.println("You received a request to play Rock-Paper-Scissors against " + rps.opponent() + ". Enter the chat first and type /rps <your_choice> (rock - 0, paper - 1, or scissors - 2).");
-        }//        Rps rps = Rps.fromJson(payload);
-////
-//
-//        System.out.println("You received a request to play Rock-Paper-Scissors against " + rps.opponent() + ". Enter your choice (rock - 0, paper - 1, or scissors - 2): ");
-//        Scanner sc = new Scanner(System.in);
-//        int choice = Integer.parseInt(sc.nextLine());
-//
-//        sendMessage(new RpsResponse(choice));
+        }
+        chatHandler.setReceivedRps(true);
+        currentStateOfGame = 2; // this client is receiver
     }
 
     /**

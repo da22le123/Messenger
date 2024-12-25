@@ -71,7 +71,7 @@ public class UserListTests {
         outUser1.flush();
         receiveLineWithTimeout(inUser1); //OK
 
-        // Connect user 1
+        // Connect user 2
         outUser2.println(Utils.objectToMessage(new Enter("tc62user2")));
         outUser2.flush();
         receiveLineWithTimeout(inUser2); //OK
