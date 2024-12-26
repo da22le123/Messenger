@@ -342,11 +342,10 @@ accepts the file, the server will send the file to the recipient.
 C1 sends a request to send a file:
 
 ```
-C1 -> S: FILE_REQ {"recipient":"<C2_username>","path":"<path>",filename":"<filename>","hash":"<hash>"}
+C1 -> S: FILE_REQ {"recipient":"<C2_username>",filename":"<filename>","hash":"<hash>"}
 ```
 
 `<C2_username>` - the username of the recipient of the file.
-`<path>` - the path to the file on the machine of the sender.
 `<filename>` - the name of the file.
 `<hash>` - checksum of the file, calculated with the SHA-256 algorithm.
 
@@ -412,11 +411,10 @@ S -> C2: file_bytes
 Client sends a request to send a file:
 
 ```
-C1 -> S: FILE_REQ {"recipient":"<C2_username>","path":"<path>",filename":"<filename>","hash":"<hash>"}
+C1 -> S: FILE_REQ {"recipient":"<C2_username>",filename":"<filename>","hash":"<hash>"}
 ```
 
 `<C2_username>` - the username of the recipient of the file.
-`<path>` - the path to the file on the machine of the sender.
 `<filename>` - the name of the file.
 `<hash>` - checksum of the file, calculated with the SHA-256 algorithm.
 

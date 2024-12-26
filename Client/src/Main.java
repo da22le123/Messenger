@@ -24,7 +24,8 @@ public class Main {
         System.out.println("1. Start chatting");
         System.out.println("2. Request list of all connected users");
         System.out.println("3. Play rock-paper-scissors");
-        System.out.println("4. Exit");
+        System.out.println("4. Send a file");
+        System.out.println("5. Exit");
     }
 
     /**
@@ -62,6 +63,9 @@ public class Main {
                 break; 
             }
             case 4: {
+                client.sendFile();
+            }
+            case 5: {
                 client.exit();
                 break;
             }
