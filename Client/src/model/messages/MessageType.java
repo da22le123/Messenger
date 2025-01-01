@@ -26,6 +26,10 @@ public enum MessageType {
     DM_REQ,
     DM_RESP,
     DM,
+    FILE,
+    FILE_REQ,
+    FILE_RESP,
+    FILE_UUID,
     PARSE_ERROR,
     UNKNOWN_COMMAND
 }

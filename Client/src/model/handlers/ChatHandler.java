@@ -7,6 +7,7 @@ import model.messages.receive.ReceivedDirectMessage;
 import model.messages.receive.Status;
 import model.messages.send.BroadcastRequest;
 import model.messages.send.DmRequest;
+import model.messages.send.FileResponseSend;
 import model.messages.send.RpsResponse;
 import utils.MessageParser;
 
@@ -23,6 +24,7 @@ public class ChatHandler {
     boolean isReceivedRps = false;
     private final ArrayList<ReceivedBroadcastMessage> unseenMessages;
     private final ArrayList<ReceivedDirectMessage> unseenDirectMessages;
+    private final ArrayList<String> incomingFileRequests;
 
 
     private final ReentrantLock lock;
@@ -33,6 +35,7 @@ public class ChatHandler {
         this.out = out;
         unseenMessages = new ArrayList<>();
         unseenDirectMessages = new ArrayList<>();
+        incomingFileRequests = new ArrayList<>();
         messageSender = new MessageSender(out);
         lock = new ReentrantLock();
         responseReceived = lock.newCondition();
@@ -67,14 +70,20 @@ public class ChatHandler {
             // not a busy wait because it blocks the thread execution until the user enters a message
             String message = sc.nextLine();
 
+            /*
+            todo extract the following commands to separate methods
+             */
+
+            // send a dm
             if (message.startsWith("/dm")) {
                 String[] parts = message.split(" ", 3);
                 String recipient = parts[1];
                 String dm = parts[2];
                 sendDirectMessage(new DmRequest(recipient, dm));
                 continue;
-            }
+            } else
 
+            // answer to the incoming rps request
             if (message.startsWith("/rps")) {
                 if (!isReceivedRps) {
                     System.out.println("You have no incoming game requests.");
@@ -86,17 +95,63 @@ public class ChatHandler {
                 messageSender.sendMessage(new RpsResponse(choice));
                 setReceivedRps(false);
                 continue;
-            }
+            } else
 
+            // quit the chat
             if (message.equals("/quitchat")) {
                 isInChat = false;
+            } else
+
+            // view all incoming file requests
+            if (message.equals("/file_requests")) {
+                if (incomingFileRequests.isEmpty()) {
+                    System.out.println("You have no incoming file transfer requests.");
+                    continue;
+                }
+
+                System.out.println("Incoming file transfer requests from: ");
+                for (String sender : incomingFileRequests) {
+                    System.out.println(sender);
+                }
+            } else
+
+            // answer to the incoming file transfer request
+            if (message.startsWith("/file_answer")) {
+                if (incomingFileRequests.isEmpty()) {
+                    System.out.println("You have no incoming file transfer requests.");
+                    continue;
+                }
+
+                String[] parts = message.split(" ", 3);
+
+                if (parts.length != 3) {
+                    System.out.println("Invalid command. Please type '/file_answer <sender> <yes/no>'");
+                    continue;
+                }
+
+                String sender = parts[1];
+                String answer = parts[2];
+
+                if (!hasIncomingFileRequestFromSender(sender)) {
+                    System.out.println("You have no incoming file transfer requests from " + sender);
+                    continue;
+                }
+
+                if (answer.equals("yes")) {
+                    System.out.println("You accepted the file transfer.");
+                    messageSender.sendMessage(new FileResponseSend(sender, new Status("OK", 0)));
+
+                } else if (answer.equals("no")) {
+                    System.out.println("You declined the file transfer.");
+                    messageSender.sendMessage(new FileResponseSend(sender, new Status("ERROR", 9003)));
+                    continue;
+                } else {
+                    System.out.println("Invalid choice. Please type 'yes' or 'no'.");
+                    continue;
+                }
             } else {
                 messageSender.sendMessage(new BroadcastRequest(message));
             }
-
-
-
-
         }
 
         unseenMessages.clear();
@@ -106,11 +161,11 @@ public class ChatHandler {
      * Handles the broadcast response message received from the server.
      * If the message was not sent successfully, an error message is printed to the console.
      *
-     * @param message The message received from the server
+     * @param payload The message received from the server
      * @throws JsonProcessingException
      */
-    public void handleBroadcastResponse(String message) throws JsonProcessingException {
-        Status status = MessageParser.parseStatus(message);
+    public void handleBroadcastResponse(String payload) throws JsonProcessingException {
+        Status status = MessageParser.parseStatus(payload);
 
         if (!status.isOk()) {
             System.out.println("Failed to send the message");
@@ -125,11 +180,11 @@ public class ChatHandler {
      * If the user is not in the chat, the message is added to the unseen messages list.
      * If the user is in the chat, the message is printed to the console.
      *
-     * @param message The message received from the server
+     * @param payload The message received from the server
      * @throws JsonProcessingException
      */
-    public void handleBroadcast(String message) throws JsonProcessingException {
-        ReceivedBroadcastMessage broadcastMessage = MessageParser.parseMessage(message);
+    public void handleBroadcast(String payload) throws JsonProcessingException {
+        ReceivedBroadcastMessage broadcastMessage = MessageParser.parseMessage(payload);
 
         if (!isInChat) {
             unseenMessages.add(broadcastMessage);
@@ -168,10 +223,10 @@ public class ChatHandler {
         lock.unlock();
     }
 
-    public void sendDirectMessage(DmRequest message) throws JsonProcessingException, InterruptedException {
+    public void sendDirectMessage(DmRequest payload) throws JsonProcessingException, InterruptedException {
         lock.lock();
 
-        messageSender.sendMessage(message);
+        messageSender.sendMessage(payload);
 
         while (!isResponseReceived) {
             responseReceived.await();
@@ -185,6 +240,19 @@ public class ChatHandler {
 
     public void setReceivedRps(boolean receivedRps) {
         isReceivedRps = receivedRps;
+    }
+
+    public void addIncomingFileRequest(String sender) {
+        incomingFileRequests.add(sender);
+    }
+
+    private boolean hasIncomingFileRequestFromSender(String sender) {
+        for (String senderName: incomingFileRequests) {
+            if (senderName.equals(sender)) {
+                return true;
+            }
+        }
+        return false;
     }
 
 

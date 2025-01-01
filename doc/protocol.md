@@ -355,16 +355,36 @@ Server sends a request to C2 accept the file:
 S -> C2: FILE {"sender":"<C1_username>","filename":"<filename>"}
 ```
 
-C2 sends a response, if the transfer was accepted:
+C2 sends a response, if the transfer was accepted.
+C2 has to include the sender's username in the response to let server know which client one responds to.
 
 ```
-C2 -> S: FILE_RESP {"status":"OK"}
+C2 -> S: FILE_RESP {"sender":"<C1_username>","status":"OK"}
 ```
 
-Server sends the response to C1, if the transfer was accepted:
+C2 -> S FILE_RESP status options: 
+
+- OK - the transfer was accepted.
+- ERROR - the transfer was rejected.
+
+Code options: 
+
+- 0 - OK, transfer accepted (can be omitted)
+- 9003 - transfer rejected
+
+The FILE_RESP that indicated rejection of the file transfer should look like this:
 
 ```
-S -> C1: FILE_RESP {"status":"OK"}
+C2 -> S: FILE_RESP {"sender":"<C1_username>","status":"ERROR","code":9003}
+```
+
+`<C1_username>` - the username of the sender of the file.
+
+Server sends the response to C1, if the transfer was accepted.
+Server include the recipient's username in the response to let C1 know which client has responded.
+
+```
+S -> C1: FILE_RESP {"recipient":"<C2_username>","status":"OK"}
 ```
 
 Server assigns UUID to these two clients and sends it to both of them:
@@ -426,12 +446,13 @@ S -> C1: FILE_RESP {"status":"ERROR", "code": <error code>}
 
 Possible `<error code>`:
 
-| Error code | Description                                                                       |
-|------------|-----------------------------------------------------------------------------------|
-| 9000       | The client that sends a file request is not logged in.                            |
-| 9001       | The client that sends a file request specified non existent recipient's username. |
-| 9002       | The client that sends a file request specified incorrect path to the file.        |
-| 9003       | The client that receives the file rejected the file transfer.                     |
+| Error code | Description                                                                               |
+|------------|-------------------------------------------------------------------------------------------|
+| 9000       | The client that sends a file request is not logged in.                                    |
+| 9001       | The client that sends a file request specified non existent recipient's username.         |
+| 9002       | The client that sends a file request specified himself as the recipient.                  |
+| 9003       | The client that receives the file rejected the file transfer.                             |
+| 9004       | The client sent a FILE_RESP that contains a sender which did not request a file transfer. |
 
 
 

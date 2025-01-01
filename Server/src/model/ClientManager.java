@@ -7,10 +7,12 @@ import model.messages.send.Status;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 public class ClientManager {
     private final List<ClientConnection> clients = new ArrayList<>();
+    private final List<ClientConnection> awaitingAcceptance = new ArrayList<>();
     private RpsGame currentRpsGame;
 
     public synchronized boolean addClient(ClientConnection client) {
@@ -44,10 +46,6 @@ public class ClientManager {
         return new ArrayList<>(clients);
     }
 
-    public synchronized void startRpsGame(ClientConnection player1, ClientConnection player2, int choicePlayer1) {
-        currentRpsGame = new RpsGame(player1, player2, choicePlayer1);
-    }
-
     public synchronized void addPlayer2Choice(int choicePlayer2) {
         currentRpsGame.setChoicePlayer2(choicePlayer2);
     }
@@ -79,23 +77,8 @@ public class ClientManager {
         currentRpsGame = new RpsGame(player1, player2, choicePlayer1);
     }
 
-    public synchronized void setChoicePlayer2(int choicePlayer2) {
-        currentRpsGame.setChoicePlayer2(choicePlayer2);
-    }
-
-    public synchronized int getPlayer1Choice() {
-        return currentRpsGame.getChoicePlayer1();
-    }
-    public synchronized int getPlayer2Choice() {
-        return currentRpsGame.getChoicePlayer2();
-    }
-
     public synchronized void calculateGameResult() {
         currentRpsGame.calculateGameResult();
-    }
-
-    public synchronized int getGameResult() {
-        return currentRpsGame.getGameResult();
     }
 
     public synchronized void sendRpsResultToPlayers(Status status) throws JsonProcessingException {
@@ -118,5 +101,17 @@ public class ClientManager {
 
     public boolean isPlayingNow(ClientConnection client) {
         return currentRpsGame != null && (currentRpsGame.getPlayer1().equals(client) || currentRpsGame.getPlayer2().equals(client));
+    }
+
+    public synchronized void addAwaitingAcceptanceClient(ClientConnection client) {
+        awaitingAcceptance.add(client);
+    }
+
+    public synchronized void removeAwaitingAcceptanceClient(ClientConnection client) {
+        awaitingAcceptance.remove(client);
+    }
+
+    public synchronized boolean isAwaitingAcceptance(String client) {
+        return awaitingAcceptance.stream().anyMatch(clientConnection -> clientConnection.getUsername().equals(client));
     }
 }

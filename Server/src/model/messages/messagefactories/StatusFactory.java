@@ -114,4 +114,24 @@ public class StatusFactory {
         return new Status("OK", 0);
     }
 
+    public Status createFileRequestResponseStatus(String username, String recipient) {
+        boolean isLoggedIn = username != null;
+        boolean recipientExists = clientManager.hasClient(recipient);
+
+        if (!isLoggedIn) {
+            return new Status("ERROR", 9000);
+        }
+
+        if (!recipientExists) {
+            return new Status("ERROR", 9001);
+        }
+
+        if (username.equals(recipient)) {
+            return new Status("ERROR", 9002);
+        }
+
+        // all checks passed
+        return new Status("OK", 0);
+    }
+
 }

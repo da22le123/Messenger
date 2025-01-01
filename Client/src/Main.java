@@ -1,6 +1,7 @@
 import model.Client;
 
 import java.io.*;
+import java.security.NoSuchAlgorithmException;
 import java.util.InputMismatchException;
 import java.util.Scanner;
 
@@ -8,7 +9,7 @@ public class Main {
     static final String SERVER_IP = "localhost";
     static final int SERVER_PORT = 1337;
 
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static void main(String[] args) throws IOException, InterruptedException, NoSuchAlgorithmException {
         Scanner sc = new Scanner(System.in);
         Client client = new Client(SERVER_IP, SERVER_PORT);
 
@@ -35,7 +36,7 @@ public class Main {
      * @throws InterruptedException
      * @throws IOException
      */
-    public static void selectOption(Scanner sc, Client client) throws InterruptedException, IOException {
+    public static void selectOption(Scanner sc, Client client) throws InterruptedException, IOException, NoSuchAlgorithmException {
         int option = -1;
 
         do {
@@ -64,6 +65,7 @@ public class Main {
             }
             case 4: {
                 client.sendFile();
+                break;
             }
             case 5: {
                 client.exit();

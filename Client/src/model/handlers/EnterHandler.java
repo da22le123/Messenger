@@ -58,13 +58,13 @@ public class EnterHandler {
      * If the user was successfully logged in, a success message is printed to the console.
      * If the user was not successfully logged in, an error message is printed to the console.
      *
-     * @param message The message received from the server
+     * @param payload The message received from the server
      * @throws JsonProcessingException
      */
-    public void handleEnterResponse(String message) throws JsonProcessingException {
+    public void handleEnterResponse(String payload) throws JsonProcessingException {
         lock.lock();
 
-        Status status = MessageParser.parseStatus(message);
+        Status status = MessageParser.parseStatus(payload);
 
         if (status.isOk()) {
             System.out.println("Successfully logged in as " + name);
@@ -84,8 +84,8 @@ public class EnterHandler {
         lock.unlock();
     }
 
-    public void handleUserJoining(String message) throws JsonProcessingException {
-        ReceivedBroadcastMessage parsedMessage = MessageParser.parseMessage(message);
+    public void handleUserJoining(String payload) throws JsonProcessingException {
+        ReceivedBroadcastMessage parsedMessage = MessageParser.parseMessage(payload);
         System.out.println(parsedMessage.username() + " has joined the chat.");
     }
 }

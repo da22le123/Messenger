@@ -5,23 +5,23 @@ import model.handlers.ChatHandler;
 import model.handlers.EnterHandler;
 import model.handlers.RpsHandler;
 import model.messages.MessageType;
-import model.messages.receive.ReceivedBroadcastMessage;
-import model.messages.receive.Rps;
-import model.messages.receive.RpsResult;
-import model.messages.receive.UserlistMessage;
+import model.messages.receive.*;
+import model.messages.receive.File;
+import model.messages.send.FileRequest;
 import model.messages.send.RpsRequest;
-import model.messages.send.RpsResponse;
 import model.messages.send.Sendable;
+import utils.CheckSumCalculator;
 import utils.MessageParser;
-
 import java.io.*;
 import java.net.Socket;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class Client {
+    private final String ipAddress;
     private final Socket socket;
     private final PrintWriter out;
     private final BufferedReader in;
@@ -40,6 +40,7 @@ public class Client {
         this.socket = setUpSocket(ipAddress, port);
         this.out = new PrintWriter(socket.getOutputStream(), true);
         this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        this.ipAddress = ipAddress;
         lock = new ReentrantLock();
         responseReceived = lock.newCondition();
         unseenMessages = new ArrayList<>();
@@ -106,34 +107,42 @@ public class Client {
      * @param message The message received from the server
      * @throws JsonProcessingException
      */
-    private void processMessage(String message) throws JsonProcessingException, InterruptedException {
+    private void processMessage(String message) throws IOException, InterruptedException {
         // Split the message into two parts: the type and the rest
         String[] parts = message.split(" ", 2); // Limit to 2 splits
         // parse the message type
         MessageType messageType = MessageParser.parseMessageType(parts[0]);
+        // get the payload of the message
+        String payload = parts.length > 1 ? parts[1] : null;
 
         switch (messageType) {
             case PING -> sendMessage(MessageType.PONG.toString());
 
-            case ENTER_RESP -> enterHandler.handleEnterResponse(parts[1]);
+            case ENTER_RESP -> enterHandler.handleEnterResponse(payload);
 
-            case BROADCAST -> chatHandler.handleBroadcast(parts[1]);
+            case BROADCAST -> chatHandler.handleBroadcast(payload);
 
-            case BROADCAST_RESP -> chatHandler.handleBroadcastResponse(parts[1]);
+            case BROADCAST_RESP -> chatHandler.handleBroadcastResponse(payload);
 
-            case USERLIST -> handleUserlist(parts[1]);
+            case USERLIST -> handleUserlist(payload);
 
-            case DM -> chatHandler.handleDirectMessage(parts[1]);
+            case DM -> chatHandler.handleDirectMessage(payload);
 
-            case DM_RESP -> chatHandler.handleDirectMessageResponse(parts[1]);
+            case DM_RESP -> chatHandler.handleDirectMessageResponse(payload);
 
-            case RPS_RESULT -> rpsHandler.handleRpsResult(parts[1]);
+            case RPS_RESULT -> rpsHandler.handleRpsResult(payload);
 
-            case RPS -> rpsHandler.handleRps(parts[1]);
+            case RPS -> rpsHandler.handleRps(payload);
 
-            case JOINED -> enterHandler.handleUserJoining(parts[1]);
+            case FILE -> handleFile(payload);
 
-            case LEFT -> handleUserLeaving(parts[1]);
+            case FILE_RESP -> handleFileResponse(payload);
+
+            case FILE_UUID -> handleFileUUID(payload);
+
+            case JOINED -> enterHandler.handleUserJoining(payload);
+
+            case LEFT -> handleUserLeaving(payload);
 
             case BYE_RESP -> handleByeResponse();
 
@@ -141,6 +150,54 @@ public class Client {
 
             case UNKNOWN_COMMAND -> System.out.println("Unknown command");
         }
+    }
+
+    private void handleFile(String payload) throws JsonProcessingException {
+        File fileMessage = File.fromJson(payload);
+        chatHandler.addIncomingFileRequest(fileMessage.sender());
+
+        if (chatHandler.isInChat()) {
+            System.out.println("You have received a file from " + fileMessage.sender() + ". The file name is " + fileMessage.filename() + ". Do you want to accept it? Type /file_answer (yes/no)");
+        } else {
+            System.out.println("You have received a file from " + fileMessage.sender() + ". The file name is " + fileMessage.filename() + ". To answer, you have to enter the chat first.");
+        }
+    }
+
+    private void handleFileResponse(String payload) throws IOException {
+        FileResponseReceive fileResponse = FileResponseReceive.fromJson(payload);
+        Socket fileTransferSocket;
+
+        if (fileResponse.status().isOk()) {
+            System.out.println("The file transfer has been accepted by recipient.");
+//            fileTransferSocket = setUpSocket(ipAddress, 1338);
+//            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+//            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+            // send uuid
+
+            // send file bytes
+        } else {
+            int errorCode = fileResponse.status().code();
+
+            switch(errorCode) {
+                case 9000:
+                    System.out.println("You are not logged in.");
+                    break;
+                case 9001:
+                    System.out.println("You specified non-existent recipient's username.");
+                    break;
+                case 9002:
+                    System.out.println("You cannot send a file to yourself.");
+                    break;
+                default:
+                    System.out.println("Unknown error.");
+            }
+        }
+    }
+
+    private void handleFileUUID(String payload) throws JsonProcessingException {
+        FileUUID fileUUID = FileUUID.fromJson(payload);
+        System.out.println("File UUID: " + fileUUID.uuid());
     }
 
     public void logIn() throws InterruptedException, JsonProcessingException {
@@ -178,7 +235,7 @@ public class Client {
         lock.unlock();
     }
 
-    public void startRpsGame() throws JsonProcessingException, InterruptedException {
+    public void startRpsGame() throws JsonProcessingException {
         Scanner sc = new Scanner(System.in);
 
         System.out.println("Enter the name of the user you want to play with: ");
@@ -191,7 +248,7 @@ public class Client {
         currentStateOfGame = 1; // this client is sender
     }
 
-    public void sendFile() {
+    public void sendFile() throws NoSuchAlgorithmException, JsonProcessingException {
         Scanner sc = new Scanner(System.in);
 
         System.out.println("Enter the name of the user you want to send the file to: ");
@@ -200,7 +257,18 @@ public class Client {
         System.out.println("Enter the path of the file you want to send: ");
         String filePath = sc.nextLine();
 
-        File file = new File(filePath);
+        System.out.println("Enter the name of the file: ");
+        String fileName = sc.nextLine();
+
+        String checksum;
+        try {
+            checksum = CheckSumCalculator.calculateSHA256(filePath);
+        } catch (IOException e) {
+            System.out.println("File not found.");
+            return;
+        }
+
+        sendMessage(new FileRequest(receiverUsername, fileName, checksum));
     }
 
     /**

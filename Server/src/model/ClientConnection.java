@@ -6,7 +6,6 @@ import model.messages.messagefactories.StatusFactory;
 import model.messages.receive.*;
 import model.messages.send.*;
 import utils.MessageParser;
-import utils.ValidationUtils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -14,6 +13,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -74,16 +74,61 @@ public class ClientConnection {
         String[] parts = clientMessage.split(" ", 2); // Limit to 2 splits
         // parse the message type
         MessageType messageType = MessageParser.parseMessageType(parts[0]);
+        // get the payload
+        String payload = parts.length > 1 ? parts[1] : null;
 
         switch (messageType) {
-            case ENTER -> handleEnter(parts[1]);
+            case ENTER -> handleEnter(payload);
             case PONG -> handlePong();
-            case BROADCAST_REQ -> handleBroadcast(parts[1]);
+            case BROADCAST_REQ -> handleBroadcast(payload);
             case USERLIST_REQ -> handleUserlist();
-            case DM_REQ -> handleDmRequest(parts[1]);
-            case RPS_REQ -> handleRpsRequest(parts[1]);
-            case RPS_RESP -> handleRpsResponse(parts[1]);
+            case DM_REQ -> handleDmRequest(payload);
+            case RPS_REQ -> handleRpsRequest(payload);
+            case RPS_RESP -> handleRpsResponse(payload);
+            case FILE_REQ -> handleFileRequest(payload);
+            case FILE_RESP -> handleFileResponse(payload);
             case BYE -> handleBye();
+        }
+    }
+
+    private void handleFileRequest(String payload) throws JsonProcessingException {
+        FileRequest fileRequest = FileRequest.fromJson(payload);
+
+        StatusFactory statusFactory = new StatusFactory(clientManager);
+        Status status = statusFactory.createFileRequestResponseStatus(this.username, fileRequest.recipient());
+
+        if (!status.isOk()) {
+            sendMessage(new Response(MessageType.FILE_RESP, status));
+            return;
+        }
+
+        ClientConnection recipient = clientManager.getClientByUsername(fileRequest.recipient());
+        // send a "File" message to the recipient in order to get acceptance.
+        recipient.sendMessage(new File(this.username, fileRequest.filename()));
+        // set client that sent a request as awaitingAcceptance
+        clientManager.addAwaitingAcceptanceClient(this);
+    }
+
+    private void handleFileResponse(String payload) throws JsonProcessingException {
+        FileResponseReceive fileResponse = FileResponseReceive.fromJson(payload);
+
+        // if "sender" that the client specified on the FILE_RESP did not request a file transfer
+        if (!clientManager.isAwaitingAcceptance(fileResponse.sender())) {
+            sendMessage(new Response(MessageType.FILE_RESP, new Status("ERROR", 9004)));
+            return;
+        }
+
+        // send back the status to the client that requested the file
+        ClientConnection sender = clientManager.getClientByUsername(fileResponse.sender());
+        sender.sendMessage(new FileResponseSend(this.username, fileResponse.status()));
+
+        if (fileResponse.status().isOk()) {
+            // send UUIDs to both clients
+            String uuid = UUID.randomUUID().toString();
+            // to sender
+            sender.sendMessage(new FileUUID(uuid));
+            // to recipient
+            sendMessage(new FileUUID(uuid));
         }
     }
 
@@ -108,7 +153,6 @@ public class ClientConnection {
         // start a game
         clientManager.startRpsGame(this.username, rpsRequest.opponent(), rpsRequest.choice());
     }
-
 
     private void handleRpsResponse(String payload) throws JsonProcessingException {
         RpsResponse rpsResponse = RpsResponse.fromJson(payload);
