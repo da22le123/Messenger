@@ -6,6 +6,7 @@ import java.net.Socket;
 
 public class Server {
     private final ClientManager clientManager;
+    private final FileTransferManager fileTransferManager;
     private final ServerSocket serverSocketTextBased;
     private final ServerSocket serverSocketFileTransfer;
 
@@ -14,6 +15,7 @@ public class Server {
         // The file-transfer server listens on the next port.
         serverSocketFileTransfer = setUpServerSocket(port + 1);
         clientManager = new ClientManager();
+        fileTransferManager = new FileTransferManager();
         handleIncomingFileTransferConnections().start();
         handleIncomingConnections();
     }
@@ -26,7 +28,7 @@ public class Server {
         while (true) {
             // Wait for an incoming client-connection request (blocking).
             Socket socket = serverSocketTextBased.accept();
-            ClientConnection clientConnection = new ClientConnection(socket, clientManager);
+            ClientConnection clientConnection = new ClientConnection(socket, clientManager, fileTransferManager);
 
             // For each client start a processing thread and a ping thread.
             clientConnection.startMessageProcessingThread();
@@ -62,7 +64,6 @@ public class Server {
         new Thread(() -> {
             try {
                 BufferedReader reader = new BufferedReader(new InputStreamReader(fileTransferSocket.getInputStream()));
-                PrintWriter writer = new PrintWriter(fileTransferSocket.getOutputStream(), true);
                 String message = reader.readLine();
 
                 String[] parts = message.split("_");
@@ -74,28 +75,28 @@ public class Server {
                 String uuid = parts[0];
                 String mode = parts[1]; // "send" or "receive"
 
-                if (!clientManager.hasTransfer(uuid)) {
+                if (!fileTransferManager.hasTransfer(uuid)) {
                     System.err.println("Unknown client: " + uuid);
                     return;
                 }
 
                 switch (mode) {
                     case "send":
-                        PrintWriter out = new PrintWriter(new OutputStreamWriter(fileTransferSocket.getOutputStream()));
-                        clientManager.setSender(uuid, out);
+                        InputStream in = fileTransferSocket.getInputStream();
+                        fileTransferManager.setSender(uuid, in);
                         break;
                     case "receive":
-                        BufferedReader in = new BufferedReader(new InputStreamReader(fileTransferSocket.getInputStream()));
-                        clientManager.setReceiver(uuid, in);
+                        OutputStream out = fileTransferSocket.getOutputStream();
+                        fileTransferManager.setReceiver(uuid, out);
                         break;
                     default:
                         System.err.println("Invalid file-transfer mode: " + mode);
                         break;
                 }
 
-                if (clientManager.isTransferReady(uuid)) {
+                if (fileTransferManager.isTransferReady(uuid)) {
                     new Thread(() -> {
-                        clientManager.startTransfer(uuid);
+                        fileTransferManager.startTransfer(uuid);
                     }).start();
                 }
             } catch (IOException e) {

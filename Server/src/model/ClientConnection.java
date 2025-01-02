@@ -28,6 +28,7 @@ public class ClientConnection {
     //private boolean isPongReceived;
 
     private ClientManager clientManager;
+    private FileTransferManager fileTransferManager;
 
 
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -39,11 +40,12 @@ public class ClientConnection {
     private volatile boolean isPingSent = false;
 
 
-    public ClientConnection(Socket socket, ClientManager clientManager) throws IOException {
+    public ClientConnection(Socket socket, ClientManager clientManager, FileTransferManager fileTransferManager) throws IOException {
         this.socket = socket;
         out = new PrintWriter(socket.getOutputStream(), true);
         in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         this.clientManager = clientManager;
+        this.fileTransferManager = fileTransferManager;
     }
 
     public void startMessageProcessingThread() {
@@ -130,7 +132,7 @@ public class ClientConnection {
             // to recipient
             sendMessage(new FileUUID(uuid));
             // add the transfer to the map
-            clientManager.addTransfer(uuid);
+            fileTransferManager.addTransfer(uuid);
         }
     }
 

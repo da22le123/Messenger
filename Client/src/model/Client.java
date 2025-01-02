@@ -31,9 +31,16 @@ public class Client {
     private PrintWriter fileOut;
     private BufferedReader fileIn;
     private String name;
+
+    // hash of the file that is being transferred
     private String currentFileTransferHash;
     // 0 - no file transfer, 1 - this instance is the sender, 2 - this instance is receiver
     private int currentFileTransferStatus;
+    // path of the file on the machine of sender
+    private String filePathSending;
+    // name of the file + extension
+    private String fileName;
+
     private final ReentrantLock lock;
     private boolean isResponseReceived;
     private Condition responseReceived;
@@ -103,8 +110,8 @@ public class Client {
 
                 // handle the case when the server hangs up
                 System.exit(0);
-            } catch (IOException | InterruptedException e) {
-                System.out.println(e.getMessage());
+            } catch (IOException | InterruptedException | NoSuchAlgorithmException e) {
+                throw new RuntimeException(e);
             }
         });
     }
@@ -115,7 +122,7 @@ public class Client {
      * @param message The message received from the server
      * @throws JsonProcessingException
      */
-    private void processMessage(String message) throws IOException, InterruptedException {
+    private void processMessage(String message) throws IOException, InterruptedException, NoSuchAlgorithmException {
         // Split the message into two parts: the type and the rest
         String[] parts = message.split(" ", 2); // Limit to 2 splits
         // parse the message type
@@ -165,11 +172,12 @@ public class Client {
         currentFileTransferStatus = 2;
         chatHandler.addIncomingFileRequest(fileMessage.sender());
         currentFileTransferHash = fileMessage.hash();
+        fileName = fileMessage.filename();
 
         if (chatHandler.isInChat()) {
-            System.out.println("You have received a file from " + fileMessage.sender() + ". The file name is " + fileMessage.filename() + ". Do you want to accept it? Type /file_answer (yes/no)");
+            System.out.println("You have received a file from " + fileMessage.sender() + ". The file name is " + fileName + ". Do you want to accept it? Type /file_answer (yes/no)");
         } else {
-            System.out.println("You have received a file from " + fileMessage.sender() + ". The file name is " + fileMessage.filename() + ". To answer, you have to enter the chat first.");
+            System.out.println("You have received a file from " + fileMessage.sender() + ". The file name is " + fileName + ". To answer, you have to enter the chat first.");
         }
     }
 
@@ -203,19 +211,70 @@ public class Client {
         }
     }
 
-    private void handleFileUUID(String payload) throws IOException {
+    private void handleFileUUID(String payload) throws IOException, NoSuchAlgorithmException {
         FileUUID fileUUID = FileUUID.fromJson(payload);
         System.out.println("File UUID: " + fileUUID.uuid() + " Sending it to the server on 1338 port.");
         fileTransferSocket = setUpSocket(ipAddress, 1338);
         System.out.println("File transfer socket established.");
         fileOut = new PrintWriter(fileTransferSocket.getOutputStream(), true);
-        fileIn = new BufferedReader(new InputStreamReader(fileTransferSocket.getInputStream()));
 
         String mode = currentFileTransferStatus == 1 ? "_send" : "_receive";
 
         fileOut.println(fileUUID.uuid() + mode);
         System.out.println("sent " + fileUUID.uuid() + mode + " to server");
+        switch (currentFileTransferStatus) {
+            case 1 -> new Thread(() -> sendFile(filePathSending, fileTransferSocket)).start();
+            case 2 -> new Thread(this::receiveFile).start();
+        }
+    }
 
+    public void sendFile(String filePath, Socket fileTransferSocket) {
+        System.out.println("Sending file...");
+        try (FileInputStream in = new FileInputStream(new java.io.File(filePath));
+             OutputStream out = fileTransferSocket.getOutputStream()) {
+
+
+            // transfer the file directly to the output stream
+            in.transferTo(out);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        cleanUpStateOfFileTransfer();
+    }
+
+    private void receiveFile() {
+        System.out.println("Receiving file...");
+        try (InputStream in = fileTransferSocket.getInputStream();
+             FileOutputStream fileOut = new FileOutputStream("/Users/illiapavelko/" + fileName)) {
+
+
+            // Copy the entire stream directly into the file
+            in.transferTo(fileOut);
+
+            String receivedFileChecksum = CheckSumCalculator.calculateSHA256("/Users/illiapavelko/" + fileName);
+            if (currentFileTransferHash.equals(receivedFileChecksum)) {
+                System.out.println("File received successfully, the checksum of the file is the same as before sending it.");
+            } else {
+                System.out.println("File received, but the checksums do not match.");
+            }
+            // System.out.println("123 file checksum: " + receivedFileChecksum);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+        cleanUpStateOfFileTransfer();
+    }
+
+    private void cleanUpStateOfFileTransfer() {
+        currentFileTransferHash = null;
+        currentFileTransferStatus = 0;
+        filePathSending = null;
     }
 
     public void logIn() throws InterruptedException, JsonProcessingException {
@@ -272,14 +331,16 @@ public class Client {
         String receiverUsername = sc.nextLine();
 
         System.out.println("Enter the path of the file you want to send: ");
-        String filePath = sc.nextLine();
+        filePathSending = sc.nextLine();
 
-        System.out.println("Enter the name of the file: ");
-        String fileName = sc.nextLine();
+        String fileExtension = filePathSending.substring(filePathSending.lastIndexOf(".") + 1);
+
+        System.out.println("Enter the name of the file. Please, don't include the file extension: ");
+        fileName = sc.nextLine() + "." + fileExtension;
 
         String checksum;
         try {
-            checksum = CheckSumCalculator.calculateSHA256(filePath);
+            checksum = CheckSumCalculator.calculateSHA256(filePathSending);
         } catch (IOException e) {
             System.out.println("File not found.");
             return;
