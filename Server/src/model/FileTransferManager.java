@@ -1,7 +1,6 @@
 package model;
 
 import java.io.*;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
@@ -9,6 +8,51 @@ import java.util.Map;
 public class FileTransferManager {
     // map <UUID, map <receiver, sender>>
     private final HashMap<String, HashMap<OutputStream, InputStream>> transfers = new HashMap<>();
+
+    public void getUUIDnUpdateTransfersMap(Socket fileTransferSocket) {
+        new Thread(() -> {
+            try {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(fileTransferSocket.getInputStream()));
+                String message = reader.readLine();
+
+                String[] parts = message.split("_");
+                if (parts.length < 2) {
+                    System.err.println("Invalid file-transfer identifier: " + message);
+                    return;
+                }
+
+                String uuid = parts[0];
+                String mode = parts[1]; // "send" or "receive"
+
+                if (!hasTransfer(uuid)) {
+                    System.err.println("Unknown client: " + uuid);
+                    return;
+                }
+
+                switch (mode) {
+                    case "send":
+                        InputStream in = fileTransferSocket.getInputStream();
+                        setSender(uuid, in);
+                        break;
+                    case "receive":
+                        OutputStream out = fileTransferSocket.getOutputStream();
+                        setReceiver(uuid, out);
+                        break;
+                    default:
+                        System.err.println("Invalid file-transfer mode: " + mode);
+                        break;
+                }
+
+                if (isTransferReady(uuid)) {
+                    new Thread(() -> {
+                        startTransfer(uuid);
+                    }).start();
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }).start();
+    }
 
     public synchronized void addTransfer(String uuid) {
         transfers.put(uuid, new HashMap<>());
@@ -37,7 +81,8 @@ public class FileTransferManager {
     }
 
     /*
-     * Check if the transfer is ready to start by checking if both sender and receiver are set
+     * Check if the transfer is ready to start (bytes can be transferred from client 1 to client 2)
+     * by checking if both sender and receiver are set
      */
     public synchronized boolean isTransferReady(String uuid) {
         // Grab the sub-map in one shot
@@ -49,9 +94,7 @@ public class FileTransferManager {
         }
 
         // Since there's supposed to be only one entry, let's get that one
-        Map.Entry<OutputStream, InputStream> entry = map.entrySet().stream()
-                .findFirst()
-                .orElse(null);
+        Map.Entry<OutputStream, InputStream> entry = map.entrySet().stream().findFirst().orElse(null);
 
         // If for some reason there's no entry, it's not ready
         if (entry == null) {
@@ -65,9 +108,7 @@ public class FileTransferManager {
     public synchronized void startTransfer(String uuid) {
         System.out.println("starting transfer for " + uuid);
         // Start the transfer
-        try (InputStream in = getSender(uuid);
-             OutputStream out = getReceiver(uuid))
-        {
+        try (InputStream in = getSender(uuid); OutputStream out = getReceiver(uuid)) {
             in.transferTo(out);
         } catch (IOException e) {
             throw new RuntimeException(e);

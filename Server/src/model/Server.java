@@ -52,7 +52,7 @@ public class Server {
                 try {
                     // for each incoming file-transfer connection, update the transfers map and start a file transfer if needed
                     Socket socket = serverSocketFileTransfer.accept();
-                    getUUIDnUpdateTransfersMap(socket);
+                    fileTransferManager.getUUIDnUpdateTransfersMap(socket);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -60,50 +60,6 @@ public class Server {
         });
     }
 
-    public void getUUIDnUpdateTransfersMap(Socket fileTransferSocket) {
-        new Thread(() -> {
-            try {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(fileTransferSocket.getInputStream()));
-                String message = reader.readLine();
-
-                String[] parts = message.split("_");
-                if (parts.length < 2) {
-                    System.err.println("Invalid file-transfer identifier: " + message);
-                    return;
-                }
-
-                String uuid = parts[0];
-                String mode = parts[1]; // "send" or "receive"
-
-                if (!fileTransferManager.hasTransfer(uuid)) {
-                    System.err.println("Unknown client: " + uuid);
-                    return;
-                }
-
-                switch (mode) {
-                    case "send":
-                        InputStream in = fileTransferSocket.getInputStream();
-                        fileTransferManager.setSender(uuid, in);
-                        break;
-                    case "receive":
-                        OutputStream out = fileTransferSocket.getOutputStream();
-                        fileTransferManager.setReceiver(uuid, out);
-                        break;
-                    default:
-                        System.err.println("Invalid file-transfer mode: " + mode);
-                        break;
-                }
-
-                if (fileTransferManager.isTransferReady(uuid)) {
-                    new Thread(() -> {
-                        fileTransferManager.startTransfer(uuid);
-                    }).start();
-                }
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }).start();
-    }
 
 
 }
