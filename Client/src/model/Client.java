@@ -3,6 +3,7 @@ package model;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import model.handlers.ChatHandler;
 import model.handlers.EnterHandler;
+import model.handlers.FileTransferHandler;
 import model.handlers.RpsHandler;
 import model.messages.MessageType;
 import model.messages.receive.*;
@@ -27,28 +28,22 @@ public class Client {
     private final Socket socket;
     private final PrintWriter out;
     private final BufferedReader in;
-    private Socket fileTransferSocket;
-    private PrintWriter fileOut;
-    private BufferedReader fileIn;
     private String name;
 
-    // hash of the file that is being transferred
-    private String currentFileTransferHash;
-    // 0 - no file transfer, 1 - this instance is the sender, 2 - this instance is receiver
-    private int currentFileTransferStatus;
-    // path of the file on the machine of sender
-    private String filePathSending;
-    // name of the file + extension
-    private String fileName;
+
 
     private final ReentrantLock lock;
     private boolean isResponseReceived;
     private Condition responseReceived;
     private final ArrayList<ReceivedBroadcastMessage> unseenMessages;
     private final ArrayList<String> connectedUsers;
+
+    // Handlers
     private final ChatHandler chatHandler;
     private final EnterHandler enterHandler;
     private final RpsHandler rpsHandler;
+    private final FileTransferHandler fileTransferHandler;
+
 
     public Client(String ipAddress, int port) throws IOException, InterruptedException {
         this.socket = setUpSocket(ipAddress, port);
@@ -62,7 +57,7 @@ public class Client {
         chatHandler = new ChatHandler(out);
         enterHandler = new EnterHandler(out);
         rpsHandler = new RpsHandler(chatHandler);
-        currentFileTransferStatus = 0;
+        fileTransferHandler = new FileTransferHandler(chatHandler, ipAddress);
         setUpListenerThread().start();
         logIn();
     }
@@ -149,11 +144,11 @@ public class Client {
 
             case RPS -> rpsHandler.handleRps(payload);
 
-            case FILE -> handleFile(payload);
+            case FILE -> fileTransferHandler.handleFile(payload);
 
-            case FILE_RESP -> handleFileResponse(payload);
+            case FILE_RESP -> fileTransferHandler.handleFileResponse(payload);
 
-            case FILE_UUID -> handleFileUUID(payload);
+            case FILE_UUID -> fileTransferHandler.handleFileUUID(payload);
 
             case JOINED -> enterHandler.handleUserJoining(payload);
 
@@ -165,116 +160,6 @@ public class Client {
 
             case UNKNOWN_COMMAND -> System.out.println("Unknown command");
         }
-    }
-
-    private void handleFile(String payload) throws JsonProcessingException {
-        File fileMessage = File.fromJson(payload);
-        currentFileTransferStatus = 2;
-        chatHandler.addIncomingFileRequest(fileMessage.sender());
-        currentFileTransferHash = fileMessage.hash();
-        fileName = fileMessage.filename();
-
-        if (chatHandler.isInChat()) {
-            System.out.println("You have received a file from " + fileMessage.sender() + ". The file name is " + fileName + ". Do you want to accept it? Type /file_answer (yes/no)");
-        } else {
-            System.out.println("You have received a file from " + fileMessage.sender() + ". The file name is " + fileName + ". To answer, you have to enter the chat first.");
-        }
-    }
-
-    private void handleFileResponse(String payload) throws IOException {
-        FileResponseReceive fileResponse = FileResponseReceive.fromJson(payload);
-
-
-        if (fileResponse.status().isOk()) {
-            System.out.println("The file transfer has been accepted by recipient.");
-        } else {
-            int errorCode = fileResponse.status().code();
-
-            switch(errorCode) {
-                case 9000:
-                    System.out.println("You are not logged in.");
-                    break;
-                case 9001:
-                    System.out.println("You specified non-existent recipient's username.");
-                    break;
-                case 9002:
-                    System.out.println("You cannot send a file to yourself.");
-                    break;
-                case 9003:
-                    System.out.println("The recipient declined the file transfer.");
-                    break;
-                default:
-                    System.out.println("Unknown error.");
-            }
-
-            currentFileTransferStatus = 0;
-        }
-    }
-
-    private void handleFileUUID(String payload) throws IOException, NoSuchAlgorithmException {
-        FileUUID fileUUID = FileUUID.fromJson(payload);
-        System.out.println("File UUID: " + fileUUID.uuid() + " Sending it to the server on 1338 port.");
-        fileTransferSocket = setUpSocket(ipAddress, 1338);
-        System.out.println("File transfer socket established.");
-        fileOut = new PrintWriter(fileTransferSocket.getOutputStream(), true);
-
-        String mode = currentFileTransferStatus == 1 ? "_send" : "_receive";
-
-        fileOut.println(fileUUID.uuid() + mode);
-        System.out.println("sent " + fileUUID.uuid() + mode + " to server");
-        switch (currentFileTransferStatus) {
-            case 1 -> new Thread(() -> sendFile(filePathSending, fileTransferSocket)).start();
-            case 2 -> new Thread(this::receiveFile).start();
-        }
-    }
-
-    public void sendFile(String filePath, Socket fileTransferSocket) {
-        System.out.println("Sending file...");
-        try (FileInputStream in = new FileInputStream(new java.io.File(filePath));
-             OutputStream out = fileTransferSocket.getOutputStream()) {
-
-
-            // transfer the file directly to the output stream
-            in.transferTo(out);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
-        cleanUpStateOfFileTransfer();
-    }
-
-    private void receiveFile() {
-        System.out.println("Receiving file...");
-        try (InputStream in = fileTransferSocket.getInputStream();
-             FileOutputStream fileOut = new FileOutputStream("/Users/illiapavelko/" + fileName)) {
-
-
-            // Copy the entire stream directly into the file
-            in.transferTo(fileOut);
-
-            String receivedFileChecksum = CheckSumCalculator.calculateSHA256("/Users/illiapavelko/" + fileName);
-            if (currentFileTransferHash.equals(receivedFileChecksum)) {
-                System.out.println("File received successfully, the checksum of the file is the same as before sending it.");
-            } else {
-                System.out.println("File received, but the checksums do not match.");
-            }
-            // System.out.println("123 file checksum: " + receivedFileChecksum);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-        cleanUpStateOfFileTransfer();
-    }
-
-    private void cleanUpStateOfFileTransfer() {
-        currentFileTransferHash = null;
-        currentFileTransferStatus = 0;
-        filePathSending = null;
     }
 
     public void logIn() throws InterruptedException, JsonProcessingException {
@@ -331,12 +216,14 @@ public class Client {
         String receiverUsername = sc.nextLine();
 
         System.out.println("Enter the path of the file you want to send: ");
-        filePathSending = sc.nextLine();
+        fileTransferHandler.setFilePathSending(sc.nextLine());
+
+        String filePathSending = fileTransferHandler.getFilePathSending();
 
         String fileExtension = filePathSending.substring(filePathSending.lastIndexOf(".") + 1);
 
         System.out.println("Enter the name of the file. Please, don't include the file extension: ");
-        fileName = sc.nextLine() + "." + fileExtension;
+        fileTransferHandler.setFileName(sc.nextLine() + "." + fileExtension);
 
         String checksum;
         try {
@@ -346,8 +233,8 @@ public class Client {
             return;
         }
 
-        sendMessage(new FileRequest(receiverUsername, fileName, checksum));
-        currentFileTransferStatus = 1;
+        sendMessage(new FileRequest(receiverUsername, fileTransferHandler.getFileName(), checksum));
+        fileTransferHandler.setCurrentFileTransferStatus(1);
     }
 
     /**
