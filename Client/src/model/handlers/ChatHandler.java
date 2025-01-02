@@ -11,15 +11,15 @@ import model.messages.send.FileResponseSend;
 import model.messages.send.RpsResponse;
 import utils.MessageParser;
 
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class ChatHandler {
+    private static final String DESCRIPTION = "The chat with other users has started.\n" + "Type /quitchat to exit the chat.\n" + "Type /dm <recipient> <message> to send a direct message to a user.\n" + "Type /rps <choice> to play rock-paper-scissors to respond the incoming game request.\n" + "Type /file_requests to view all senders that sent a file request.\n" + "Type /file_answer <sender> <yes/no> to answer to the incoming file transfer request.\n" + "Type /help to see all available commands again.\n";
+
     private final MessageSender messageSender;
-    private final PrintWriter out;
     boolean isInChat = false;
     boolean isReceivedRps = false;
     private final ArrayList<ReceivedBroadcastMessage> unseenMessages;
@@ -31,12 +31,11 @@ public class ChatHandler {
     private boolean isResponseReceived;
     private final Condition responseReceived;
 
-    public ChatHandler(PrintWriter out) {
-        this.out = out;
+    public ChatHandler(MessageSender messageSender) {
         unseenMessages = new ArrayList<>();
         unseenDirectMessages = new ArrayList<>();
         incomingFileRequests = new ArrayList<>();
-        messageSender = new MessageSender(out);
+        this.messageSender = messageSender;
         lock = new ReentrantLock();
         responseReceived = lock.newCondition();
     }
@@ -49,7 +48,8 @@ public class ChatHandler {
     public void startChatting() throws JsonProcessingException, InterruptedException {
         Scanner sc = new Scanner(System.in);
 
-        System.out.println("The chat with other users has started. Type /quitchat to exit the chat.\n" + "Type /dm <recipient> <message> to send a direct message to a user.\n" + "Type /rps <choice> to play rock-paper-scissors to respond the incoming game request.");
+        System.out.println(DESCRIPTION);
+
         isInChat = true;
 
         if (!unseenDirectMessages.isEmpty()) {
@@ -76,85 +76,99 @@ public class ChatHandler {
 
             // send a dm
             if (message.startsWith("/dm")) {
-                String[] parts = message.split(" ", 3);
-                String recipient = parts[1];
-                String dm = parts[2];
-                sendDirectMessage(new DmRequest(recipient, dm));
-                continue;
+                dmCommand(message);
             } else
 
-            // answer to the incoming rps request
-            if (message.startsWith("/rps")) {
-                if (!isReceivedRps) {
-                    System.out.println("You have no incoming game requests.");
-                    continue;
-                }
+                // answer to the incoming rps request
+                if (message.startsWith("/rps")) {
+                    rpsCommand(message);
+                } else
 
-                String[] parts = message.split(" ", 2);
-                int choice = Integer.parseInt(parts[1]);
-                messageSender.sendMessage(new RpsResponse(choice));
-                setReceivedRps(false);
-                continue;
-            } else
+                    // quit the chat
+                    if (message.equals("/quitchat")) {
+                        isInChat = false;
+                    } else
 
-            // quit the chat
-            if (message.equals("/quitchat")) {
-                isInChat = false;
-            } else
+                        // view all incoming file requests
+                        if (message.equals("/file_requests")) {
+                            fileRequestsCommand();
+                        } else
 
-            // view all incoming file requests
-            if (message.equals("/file_requests")) {
-                if (incomingFileRequests.isEmpty()) {
-                    System.out.println("You have no incoming file transfer requests.");
-                    continue;
-                }
-
-                System.out.println("Incoming file transfer requests from: ");
-                for (String sender : incomingFileRequests) {
-                    System.out.println(sender);
-                }
-            } else
-
-            // answer to the incoming file transfer request
-            if (message.startsWith("/file_answer")) {
-                if (incomingFileRequests.isEmpty()) {
-                    System.out.println("You have no incoming file transfer requests.");
-                    continue;
-                }
-
-                String[] parts = message.split(" ", 3);
-
-                if (parts.length != 3) {
-                    System.out.println("Invalid command. Please type '/file_answer <sender> <yes/no>'");
-                    continue;
-                }
-
-                String sender = parts[1];
-                String answer = parts[2];
-
-                if (!hasIncomingFileRequestFromSender(sender)) {
-                    System.out.println("You have no incoming file transfer requests from " + sender);
-                    continue;
-                }
-
-                if (answer.equals("yes")) {
-                    System.out.println("You accepted the file transfer.");
-                    messageSender.sendMessage(new FileResponseSend(sender, new Status("OK", 0)));
-
-                } else if (answer.equals("no")) {
-                    System.out.println("You declined the file transfer.");
-                    messageSender.sendMessage(new FileResponseSend(sender, new Status("ERROR", 9003)));
-                    continue;
-                } else {
-                    System.out.println("Invalid choice. Please type 'yes' or 'no'.");
-                    continue;
-                }
-            } else {
-                messageSender.sendMessage(new BroadcastRequest(message));
-            }
+                            // answer to the incoming file transfer request     // view description
+                            if (message.startsWith("/file_answer")) {
+                                fileAnswerCommand(message);
+                            } else if (message.equals("/help")) {
+                                System.out.println(DESCRIPTION);
+                            } else {
+                                messageSender.sendMessage(new BroadcastRequest(message));
+                            }
         }
 
         unseenMessages.clear();
+    }
+
+    private void fileAnswerCommand(String message) throws JsonProcessingException {
+        if (incomingFileRequests.isEmpty()) {
+            System.out.println("You have no incoming file transfer requests.");
+            return;
+        }
+
+        String[] parts = message.split(" ", 3);
+
+        if (parts.length != 3) {
+            System.out.println("Invalid command. Please type '/file_answer <sender> <yes/no>'");
+            return;
+        }
+
+        String sender = parts[1];
+        String answer = parts[2];
+
+        if (!hasIncomingFileRequestFromSender(sender)) {
+            System.out.println("You have no incoming file transfer requests from " + sender);
+            return;
+        }
+
+        if (answer.equals("yes")) {
+            System.out.println("You accepted the file transfer.");
+            messageSender.sendMessage(new FileResponseSend(sender, new Status("OK", 0)));
+
+        } else if (answer.equals("no")) {
+            System.out.println("You declined the file transfer.");
+            messageSender.sendMessage(new FileResponseSend(sender, new Status("ERROR", 9003)));
+        } else {
+            System.out.println("Invalid choice. Please type 'yes' or 'no'.");
+        }
+    }
+
+    private void fileRequestsCommand() {
+        if (incomingFileRequests.isEmpty()) {
+            System.out.println("You have no incoming file transfer requests.");
+            return;
+        }
+
+        System.out.println("Incoming file transfer requests from: ");
+        for (String sender : incomingFileRequests) {
+            System.out.println(sender);
+        }
+    }
+
+    private void rpsCommand(String message) throws JsonProcessingException {
+        if (!isReceivedRps) {
+            System.out.println("You have no incoming game requests.");
+            return;
+        }
+
+        String[] parts = message.split(" ", 2);
+        int choice = Integer.parseInt(parts[1]);
+        messageSender.sendMessage(new RpsResponse(choice));
+        setReceivedRps(false);
+    }
+
+    private void dmCommand(String message) throws JsonProcessingException, InterruptedException {
+        String[] parts = message.split(" ", 3);
+        String recipient = parts[1];
+        String dm = parts[2];
+        sendDirectMessage(new DmRequest(recipient, dm));
     }
 
     /**
@@ -247,7 +261,7 @@ public class ChatHandler {
     }
 
     private boolean hasIncomingFileRequestFromSender(String sender) {
-        for (String senderName: incomingFileRequests) {
+        for (String senderName : incomingFileRequests) {
             if (senderName.equals(sender)) {
                 return true;
             }

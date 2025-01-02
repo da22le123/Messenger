@@ -14,15 +14,13 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class EnterHandler {
     private final MessageSender messageSender;
-    private final PrintWriter out;
     private final ReentrantLock lock;
     private boolean isLoggedIn;
     private final Condition loggedIn;
     private String name;
 
-    public EnterHandler(PrintWriter out) {
-        this.out = out;
-        messageSender = new MessageSender(out);
+    public EnterHandler(MessageSender messageSender) {
+        this.messageSender = messageSender;
         lock = new ReentrantLock();
         loggedIn = lock.newCondition();
     }

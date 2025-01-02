@@ -35,8 +35,9 @@ public class Client {
     private final ReentrantLock lock;
     private boolean isResponseReceived;
     private Condition responseReceived;
-    private final ArrayList<ReceivedBroadcastMessage> unseenMessages;
     private final ArrayList<String> connectedUsers;
+
+    private final MessageSender messageSender;
 
     // Handlers
     private final ChatHandler chatHandler;
@@ -52,12 +53,16 @@ public class Client {
         this.ipAddress = ipAddress;
         lock = new ReentrantLock();
         responseReceived = lock.newCondition();
-        unseenMessages = new ArrayList<>();
+
         connectedUsers = new ArrayList<>();
-        chatHandler = new ChatHandler(out);
-        enterHandler = new EnterHandler(out);
+
+        messageSender = new MessageSender(out);
+        //handlers
+        chatHandler = new ChatHandler(messageSender);
+        enterHandler = new EnterHandler(messageSender);
         rpsHandler = new RpsHandler(chatHandler);
         fileTransferHandler = new FileTransferHandler(chatHandler, ipAddress);
+
         setUpListenerThread().start();
         logIn();
     }
@@ -210,6 +215,11 @@ public class Client {
     }
 
     public void sendFile() throws NoSuchAlgorithmException, JsonProcessingException {
+        if (fileTransferHandler.getCurrentFileTransferStatus()!=0) {
+            System.out.println("You are amidst file transfer process.");
+            return;
+        }
+
         Scanner sc = new Scanner(System.in);
 
         System.out.println("Enter the name of the user you want to send the file to: ");
