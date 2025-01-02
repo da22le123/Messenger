@@ -3,7 +3,7 @@ package model.messages.receive;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public record File(String sender, String filename) implements Creator<File> {
+public record File(String sender, String filename, String hash) implements Creator<File> {
     @Override
     public File create(String json) throws JsonProcessingException {
         ObjectMapper objectMapper = new ObjectMapper();
@@ -11,6 +11,6 @@ public record File(String sender, String filename) implements Creator<File> {
     }
 
     public static File fromJson(String json) throws JsonProcessingException {
-        return new File("", "").create(json);
+        return new File("", "", "").create(json);
     }
 }

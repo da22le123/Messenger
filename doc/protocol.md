@@ -352,7 +352,7 @@ C1 -> S: FILE_REQ {"recipient":"<C2_username>",filename":"<filename>","hash":"<h
 Server sends a request to C2 accept the file:
 
 ```
-S -> C2: FILE {"sender":"<C1_username>","filename":"<filename>"}
+S -> C2: FILE {"sender":"<C1_username>","filename":"<filename>","hash}
 ```
 
 C2 sends a response, if the transfer was accepted.

@@ -5,14 +5,21 @@ import model.messages.send.RpsResult;
 import model.messages.send.Sendable;
 import model.messages.send.Status;
 
+import java.io.BufferedReader;
 import java.io.PrintWriter;
+import java.nio.Buffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ClientManager {
     private final List<ClientConnection> clients = new ArrayList<>();
+
     private final List<ClientConnection> awaitingAcceptance = new ArrayList<>();
+    // map <UUID, map <receiver, sender>>
+    private final HashMap<String, HashMap<BufferedReader, PrintWriter>> transfers = new HashMap<>();
+
     private RpsGame currentRpsGame;
 
     public synchronized boolean addClient(ClientConnection client) {
@@ -114,4 +121,61 @@ public class ClientManager {
     public synchronized boolean isAwaitingAcceptance(String client) {
         return awaitingAcceptance.stream().anyMatch(clientConnection -> clientConnection.getUsername().equals(client));
     }
+
+    public synchronized void addTransfer(String uuid) {
+        transfers.put(uuid, new HashMap<>());
+    }
+
+    public synchronized BufferedReader getReceiver(String uuid) {
+        return transfers.get(uuid).keySet().stream().findFirst().orElse(null);
+    }
+
+    public synchronized PrintWriter getSender(String uuid) {
+        return transfers.get(uuid).values().stream().findFirst().orElse(null);
+    }
+
+    public synchronized void setSender(String uuid, PrintWriter sender) {
+        BufferedReader receiver = getReceiver(uuid);
+        transfers.get(uuid).put(receiver, sender);
+    }
+
+    public synchronized void setReceiver(String uuid, BufferedReader receiver) {
+        PrintWriter sender = getSender(uuid);
+        transfers.get(uuid).put(receiver, sender);
+    }
+
+    public synchronized boolean hasTransfer(String uuid) {
+        return transfers.containsKey(uuid);
+    }
+
+    /*
+     * Check if the transfer is ready to start by checking if both sender and receiver are set
+     */
+    public synchronized boolean isTransferReady(String uuid) {
+        // Grab the sub-map in one shot
+        HashMap<BufferedReader, PrintWriter> map = transfers.get(uuid);
+
+        // If there's no sub-map or it's empty, definitely not ready
+        if (map == null || map.isEmpty()) {
+            return false;
+        }
+
+        // Since there's supposed to be only one entry, let's get that one
+        Map.Entry<BufferedReader, PrintWriter> entry = map.entrySet().stream()
+                .findFirst()
+                .orElse(null);
+
+        // If for some reason there's no entry, it's not ready
+        if (entry == null) {
+            return false;
+        }
+
+        // It's ready only if both key (BufferedReader) and value (PrintWriter) are non-null
+        return entry.getKey() != null && entry.getValue() != null;
+    }
+
+    public synchronized void startTransfer(String uuid) {
+        System.out.println("Starting transfer for " + uuid);
+    }
+
 }

@@ -12,6 +12,8 @@ import model.messages.send.RpsRequest;
 import model.messages.send.Sendable;
 import utils.CheckSumCalculator;
 import utils.MessageParser;
+
+import java.awt.print.PrinterException;
 import java.io.*;
 import java.net.Socket;
 import java.security.NoSuchAlgorithmException;
@@ -25,10 +27,15 @@ public class Client {
     private final Socket socket;
     private final PrintWriter out;
     private final BufferedReader in;
+    private Socket fileTransferSocket;
+    private PrintWriter fileOut;
+    private BufferedReader fileIn;
     private String name;
+    private String currentFileTransferHash;
+    // 0 - no file transfer, 1 - this instance is the sender, 2 - this instance is receiver
+    private int currentFileTransferStatus;
     private final ReentrantLock lock;
     private boolean isResponseReceived;
-    private int currentStateOfGame; // 0 - no game, 1 - sender, 2 - receiver (rock-paper-scissors)
     private Condition responseReceived;
     private final ArrayList<ReceivedBroadcastMessage> unseenMessages;
     private final ArrayList<String> connectedUsers;
@@ -48,6 +55,7 @@ public class Client {
         chatHandler = new ChatHandler(out);
         enterHandler = new EnterHandler(out);
         rpsHandler = new RpsHandler(chatHandler);
+        currentFileTransferStatus = 0;
         setUpListenerThread().start();
         logIn();
     }
@@ -154,7 +162,9 @@ public class Client {
 
     private void handleFile(String payload) throws JsonProcessingException {
         File fileMessage = File.fromJson(payload);
+        currentFileTransferStatus = 2;
         chatHandler.addIncomingFileRequest(fileMessage.sender());
+        currentFileTransferHash = fileMessage.hash();
 
         if (chatHandler.isInChat()) {
             System.out.println("You have received a file from " + fileMessage.sender() + ". The file name is " + fileMessage.filename() + ". Do you want to accept it? Type /file_answer (yes/no)");
@@ -165,17 +175,10 @@ public class Client {
 
     private void handleFileResponse(String payload) throws IOException {
         FileResponseReceive fileResponse = FileResponseReceive.fromJson(payload);
-        Socket fileTransferSocket;
+
 
         if (fileResponse.status().isOk()) {
             System.out.println("The file transfer has been accepted by recipient.");
-//            fileTransferSocket = setUpSocket(ipAddress, 1338);
-//            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-//            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-
-            // send uuid
-
-            // send file bytes
         } else {
             int errorCode = fileResponse.status().code();
 
@@ -189,15 +192,30 @@ public class Client {
                 case 9002:
                     System.out.println("You cannot send a file to yourself.");
                     break;
+                case 9003:
+                    System.out.println("The recipient declined the file transfer.");
+                    break;
                 default:
                     System.out.println("Unknown error.");
             }
+
+            currentFileTransferStatus = 0;
         }
     }
 
-    private void handleFileUUID(String payload) throws JsonProcessingException {
+    private void handleFileUUID(String payload) throws IOException {
         FileUUID fileUUID = FileUUID.fromJson(payload);
-        System.out.println("File UUID: " + fileUUID.uuid());
+        System.out.println("File UUID: " + fileUUID.uuid() + " Sending it to the server on 1338 port.");
+        fileTransferSocket = setUpSocket(ipAddress, 1338);
+        System.out.println("File transfer socket established.");
+        fileOut = new PrintWriter(fileTransferSocket.getOutputStream(), true);
+        fileIn = new BufferedReader(new InputStreamReader(fileTransferSocket.getInputStream()));
+
+        String mode = currentFileTransferStatus == 1 ? "_send" : "_receive";
+
+        fileOut.println(fileUUID.uuid() + mode);
+        System.out.println("sent " + fileUUID.uuid() + mode + " to server");
+
     }
 
     public void logIn() throws InterruptedException, JsonProcessingException {
@@ -245,7 +263,6 @@ public class Client {
         int choice = Integer.parseInt(sc.nextLine());
 
         sendMessage(new RpsRequest(opponent, choice));
-        currentStateOfGame = 1; // this client is sender
     }
 
     public void sendFile() throws NoSuchAlgorithmException, JsonProcessingException {
@@ -269,6 +286,7 @@ public class Client {
         }
 
         sendMessage(new FileRequest(receiverUsername, fileName, checksum));
+        currentFileTransferStatus = 1;
     }
 
     /**

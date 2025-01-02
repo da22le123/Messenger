@@ -104,7 +104,7 @@ public class ClientConnection {
 
         ClientConnection recipient = clientManager.getClientByUsername(fileRequest.recipient());
         // send a "File" message to the recipient in order to get acceptance.
-        recipient.sendMessage(new File(this.username, fileRequest.filename()));
+        recipient.sendMessage(new File(this.username, fileRequest.filename(), fileRequest.hash()));
         // set client that sent a request as awaitingAcceptance
         clientManager.addAwaitingAcceptanceClient(this);
     }
@@ -129,6 +129,8 @@ public class ClientConnection {
             sender.sendMessage(new FileUUID(uuid));
             // to recipient
             sendMessage(new FileUUID(uuid));
+            // add the transfer to the map
+            clientManager.addTransfer(uuid);
         }
     }
 

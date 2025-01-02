@@ -11,6 +11,6 @@ public record FileResponseReceive(String recipient, Status status) implements Cr
     }
 
     public static FileResponseReceive fromJson(String json) throws JsonProcessingException {
-        return new FileResponseReceive("", new Status("", 0).create(json));
+        return new FileResponseReceive("", new Status("", 0)).create(json);
     }
 }
