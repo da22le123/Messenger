@@ -7,7 +7,7 @@ import java.util.Map;
 
 public class FileTransferManager {
     // map <UUID, map <receiver, sender>>
-    private final HashMap<String, HashMap<OutputStream, InputStream>> transfers = new HashMap<>();
+    private final Map<String, HashMap<OutputStream, InputStream>> transfers = new HashMap<>();
 
     public void getUUIDnUpdateTransfersMap(Socket fileTransferSocket) {
         new Thread(() -> {
@@ -43,9 +43,15 @@ public class FileTransferManager {
                         break;
                 }
 
-                if (isTransferReady(uuid)) {
+                if (isTransferReady(uuid)){
                     new Thread(() -> {
                         startTransfer(uuid);
+                        try {
+                            System.out.println("closing file transfer socket");
+                            fileTransferSocket.close();
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
                     }).start();
                 }
             } catch (IOException e) {
@@ -112,6 +118,8 @@ public class FileTransferManager {
             in.transferTo(out);
         } catch (IOException e) {
             throw new RuntimeException(e);
+        } finally {
+
         }
     }
 }

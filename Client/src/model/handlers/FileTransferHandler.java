@@ -81,15 +81,12 @@ public class FileTransferHandler {
 
     public void handleFileUUID(String payload) throws IOException, NoSuchAlgorithmException {
         FileUUID fileUUID = FileUUID.fromJson(payload);
-        System.out.println("File UUID: " + fileUUID.uuid() + " Sending it to the server on 1338 port.");
         fileTransferSocket = new Socket(ipAddress, PORT);
-        System.out.println("File transfer socket established.");
         PrintWriter fileOut = new PrintWriter(fileTransferSocket.getOutputStream(), true);
 
         String mode = currentFileTransferStatus == 1 ? "_send" : "_receive";
 
         fileOut.println(fileUUID.uuid() + mode);
-        System.out.println("sent " + fileUUID.uuid() + mode + " to server");
         switch (currentFileTransferStatus) {
             case 1 -> new Thread(() -> sendFile(filePathSending, fileTransferSocket)).start();
             case 2 -> new Thread(this::receiveFile).start();
@@ -109,8 +106,9 @@ public class FileTransferHandler {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
-        cleanUpStateOfFileTransfer();
+        finally {
+            cleanUpStateOfFileTransfer();
+        }
     }
 
     public void receiveFile() {
@@ -121,6 +119,7 @@ public class FileTransferHandler {
 
             // Copy the entire stream directly into the file
             in.transferTo(fileOut);
+            // fileTransferSocket.close();
 
             String receivedFileChecksum = CheckSumCalculator.calculateSHA256("/Users/illiapavelko/" + fileName);
             if (currentFileTransferHash.equals(receivedFileChecksum)) {
@@ -135,8 +134,10 @@ public class FileTransferHandler {
             throw new RuntimeException(e);
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
+        }finally {
+            cleanUpStateOfFileTransfer();
         }
-        cleanUpStateOfFileTransfer();
+
     }
 
     public void cleanUpStateOfFileTransfer() {

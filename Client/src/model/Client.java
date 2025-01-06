@@ -19,6 +19,7 @@ import java.io.*;
 import java.net.Socket;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -35,7 +36,7 @@ public class Client {
     private final ReentrantLock lock;
     private boolean isResponseReceived;
     private Condition responseReceived;
-    private final ArrayList<String> connectedUsers;
+    private final List<String> connectedUsers;
 
     private final MessageSender messageSender;
 
