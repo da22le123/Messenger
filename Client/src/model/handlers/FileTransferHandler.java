@@ -84,9 +84,10 @@ public class FileTransferHandler {
         fileTransferSocket = new Socket(ipAddress, PORT);
         PrintWriter fileOut = new PrintWriter(fileTransferSocket.getOutputStream(), true);
 
-        String mode = currentFileTransferStatus == 1 ? "_send" : "_receive";
+        String mode = currentFileTransferStatus == 1 ? "_s" : "_r";
 
         fileOut.println(fileUUID.uuid() + mode);
+        System.out.println("sent " + fileUUID.uuid() + mode + " to server");
         switch (currentFileTransferStatus) {
             case 1 -> new Thread(() -> sendFile(filePathSending, fileTransferSocket)).start();
             case 2 -> new Thread(this::receiveFile).start();
@@ -98,9 +99,9 @@ public class FileTransferHandler {
         try (FileInputStream in = new FileInputStream(new java.io.File(filePath));
              OutputStream out = fileTransferSocket.getOutputStream()) {
 
-
             // transfer the file directly to the output stream
             in.transferTo(out);
+            System.out.println("File is completely sent.");
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         } catch (IOException e) {
@@ -119,7 +120,8 @@ public class FileTransferHandler {
 
             // Copy the entire stream directly into the file
             in.transferTo(fileOut);
-            // fileTransferSocket.close();
+
+            System.out.println("File is completely received.");
 
             String receivedFileChecksum = CheckSumCalculator.calculateSHA256("/Users/illiapavelko/" + fileName);
             if (currentFileTransferHash.equals(receivedFileChecksum)) {
@@ -134,10 +136,8 @@ public class FileTransferHandler {
             throw new RuntimeException(e);
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
-        }finally {
-            cleanUpStateOfFileTransfer();
         }
-
+        cleanUpStateOfFileTransfer();
     }
 
     public void cleanUpStateOfFileTransfer() {

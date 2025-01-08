@@ -2,6 +2,7 @@ package model;
 
 import java.io.*;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -12,9 +13,10 @@ public class FileTransferManager {
     public void getUUIDnUpdateTransfersMap(Socket fileTransferSocket) {
         new Thread(() -> {
             try {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(fileTransferSocket.getInputStream()));
-                String message = reader.readLine();
-
+                // Read exactly 39 bytes from the input stream
+                byte[] buffer = fileTransferSocket.getInputStream().readNBytes(39);
+                String message = new String(buffer, StandardCharsets.UTF_8); // Convert bytes to string
+                System.out.println("Received file-transfer identifier: " + message);
                 String[] parts = message.split("_");
                 if (parts.length < 2) {
                     System.err.println("Invalid file-transfer identifier: " + message);
@@ -22,7 +24,7 @@ public class FileTransferManager {
                 }
 
                 String uuid = parts[0];
-                String mode = parts[1]; // "send" or "receive"
+                char mode = parts[1].charAt(0); // "s" or "r"
 
                 if (!hasTransfer(uuid)) {
                     System.err.println("Unknown client: " + uuid);
@@ -30,11 +32,11 @@ public class FileTransferManager {
                 }
 
                 switch (mode) {
-                    case "send":
+                    case 's':
                         InputStream in = fileTransferSocket.getInputStream();
                         setSender(uuid, in);
                         break;
-                    case "receive":
+                    case 'r':
                         OutputStream out = fileTransferSocket.getOutputStream();
                         setReceiver(uuid, out);
                         break;
@@ -46,12 +48,12 @@ public class FileTransferManager {
                 if (isTransferReady(uuid)){
                     new Thread(() -> {
                         startTransfer(uuid);
-                        try {
-                            System.out.println("closing file transfer socket");
-                            fileTransferSocket.close();
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
+//                        try {
+//                            System.out.println("closing file transfer socket");
+//                            fileTransferSocket.close();
+//                        } catch (IOException e) {
+//                            throw new RuntimeException(e);
+//                        }
                     }).start();
                 }
             } catch (IOException e) {
@@ -116,10 +118,9 @@ public class FileTransferManager {
         // Start the transfer
         try (InputStream in = getSender(uuid); OutputStream out = getReceiver(uuid)) {
             in.transferTo(out);
+            System.out.println("File is completely transferred.");
         } catch (IOException e) {
             throw new RuntimeException(e);
-        } finally {
-
         }
     }
 }
