@@ -2,6 +2,7 @@ package model.messages.receive;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import model.messages.Status;
 
 public record FileResponseReceive(String recipient, Status status) implements Creator<FileResponseReceive> {
     @Override

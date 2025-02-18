@@ -5,7 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import model.messages.MessageType;
 import model.messages.receive.ReceivedBroadcastMessage;
-import model.messages.receive.Status;
+import model.messages.Status;
 import model.messages.receive.UserlistMessage;
 
 /**

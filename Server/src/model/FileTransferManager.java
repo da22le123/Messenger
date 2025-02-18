@@ -48,12 +48,6 @@ public class FileTransferManager {
                 if (isTransferReady(uuid)){
                     new Thread(() -> {
                         startTransfer(uuid);
-//                        try {
-//                            System.out.println("closing file transfer socket");
-//                            fileTransferSocket.close();
-//                        } catch (IOException e) {
-//                            throw new RuntimeException(e);
-//                        }
                     }).start();
                 }
             } catch (IOException e) {

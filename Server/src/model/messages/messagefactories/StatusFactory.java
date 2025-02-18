@@ -98,6 +98,28 @@ public class StatusFactory {
         return new Status("OK", 0);
     }
 
+    public Status createTttResponseStatus(String C1, String C2, int move) {
+        ClientConnection client1 = clientManager.getClientByUsername(C1);
+        ClientConnection client2 = clientManager.getClientByUsername(C2);
+
+        if (client1 == null) {
+            return new Status("ERROR", 2000);
+        }
+
+        if (clientManager.IsTttGameRunning()) {
+            return new Status("ERROR", 2001);
+        }
+
+        if (client2 == null) {
+            return new Status("ERROR", 2002);
+        }
+
+        if (client1.equals(client2)) {
+            return new Status("ERROR", 2003);
+        }
+
+        if ()
+    }
 
     /**
      * Create a status object for the result of the RPS game

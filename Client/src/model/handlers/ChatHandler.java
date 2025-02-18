@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import model.MessageSender;
 import model.messages.receive.ReceivedBroadcastMessage;
 import model.messages.receive.ReceivedDirectMessage;
-import model.messages.receive.Status;
+import model.messages.Status;
 import model.messages.send.BroadcastRequest;
 import model.messages.send.DmRequest;
 import model.messages.send.FileResponseSend;

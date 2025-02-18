@@ -35,16 +35,6 @@ public class Server {
         }
     }
 
-//    private void handleIncomingFileTransferConnections() throws IOException {
-//        System.out.println("File-transfer server socket started.");
-//        while (true) {
-//            // Wait for an incoming client-connection request (blocking).
-//            Socket socket = serverSocketFileTransfer.accept();
-//            // for each incoming file-transfer connection, update the transfers map and start a file transfer if needed
-//            getUUIDnUpdateTransfersMap(socket);
-//        }
-//    }
-
     private Thread handleIncomingFileTransferConnections() {
         return new Thread(() -> {
             while (true) {

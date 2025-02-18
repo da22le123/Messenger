@@ -6,16 +6,19 @@ import model.handlers.EnterHandler;
 import model.handlers.FileTransferHandler;
 import model.handlers.RpsHandler;
 import model.messages.MessageType;
-import model.messages.receive.*;
-import model.messages.receive.File;
+import model.messages.receive.ReceivedBroadcastMessage;
+import model.messages.receive.UserlistMessage;
 import model.messages.send.FileRequest;
 import model.messages.send.RpsRequest;
 import model.messages.send.Sendable;
+import model.messages.send.TttRequestSend;
 import utils.CheckSumCalculator;
 import utils.MessageParser;
 
-import java.awt.print.PrinterException;
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.Socket;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -30,7 +33,6 @@ public class Client {
     private final PrintWriter out;
     private final BufferedReader in;
     private String name;
-
 
 
     private final ReentrantLock lock;
@@ -216,7 +218,7 @@ public class Client {
     }
 
     public void sendFile() throws NoSuchAlgorithmException, JsonProcessingException {
-        if (fileTransferHandler.getCurrentFileTransferStatus()!=0) {
+        if (fileTransferHandler.getCurrentFileTransferStatus() != 0) {
             System.out.println("You are amidst file transfer process.");
             return;
         }
@@ -305,4 +307,15 @@ public class Client {
         System.out.println(parsedMessage.username() + " has left the chat.");
     }
 
+    public void startTicTacToeGame() throws JsonProcessingException {
+        Scanner sc = new Scanner(System.in);
+
+        System.out.println("Enter the name of the user you want to play with: ");
+        String opponent = sc.nextLine();
+
+        System.out.println("Enter your move 0-8 (0 to 2 inclusive for the first row, 3 to 5 inclusive for the second row, and 6 to 8 inclusive for the third row): ");
+        int move = Integer.parseInt(sc.nextLine());
+
+        sendMessage(new TttRequestSend(opponent, move));
+    }
 }

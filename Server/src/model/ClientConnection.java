@@ -51,9 +51,7 @@ public class ClientConnection {
     public void startMessageProcessingThread() {
         new Thread(() -> {
             try {
-                //todo create a data structure for the message
-
-                sendMessage("READY {\"version\": \"1.6.0\"}");
+                sendMessage(new ReadyMessage("1.6.0"));
 
                 String clientMessage;
                 while ((clientMessage = in.readLine()) != null) {
@@ -61,7 +59,6 @@ public class ClientConnection {
                     processMessage(clientMessage);
                 }
 
-                // todo cleanup
                 cleanUp();
             } catch (IOException e) {
                 cleanUp();
@@ -89,6 +86,7 @@ public class ClientConnection {
             case RPS_RESP -> handleRpsResponse(payload);
             case FILE_REQ -> handleFileRequest(payload);
             case FILE_RESP -> handleFileResponse(payload);
+            case TTT_REQ -> handleTttRequest(payload);
             case BYE -> handleBye();
         }
     }
@@ -191,6 +189,24 @@ public class ClientConnection {
         if (status.isOk()) {
             ClientConnection recipient = clientManager.getClientByUsername(dmRequest.recipient());
             recipient.sendMessage(new DirectMessage(this.username, dmRequest.message()));
+        }
+    }
+
+    private void handleTttRequest(String payload) throws JsonProcessingException {
+        TttRequestReceive tttRequest = TttRequestReceive.fromJson(payload);
+
+        Status status = new StatusFactory(clientManager).createTttResponseStatus(this.username, tttRequest.opponent());
+
+        if (status != null) {
+            sendMessage(new Response(MessageType.TTT_RESP, status));
+        } else {
+            throw new RuntimeException("No response was created by the factory.");
+        }
+
+        if (status.isOk()) {
+            ClientConnection opponent = clientManager.getClientByUsername(tttRequest.opponent());
+            opponent.sendMessage(new Ttt(this.username));
+            clientManager.startTttGame(this.username, tttRequest.opponent());
         }
     }
 

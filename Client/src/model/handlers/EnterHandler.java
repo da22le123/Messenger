@@ -3,11 +3,10 @@ package model.handlers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import model.MessageSender;
 import model.messages.receive.ReceivedBroadcastMessage;
-import model.messages.receive.Status;
+import model.messages.Status;
 import model.messages.send.EnterRequest;
 import utils.MessageParser;
 
-import java.io.PrintWriter;
 import java.util.Scanner;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;

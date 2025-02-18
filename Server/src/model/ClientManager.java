@@ -20,6 +20,8 @@ public class ClientManager {
 
     private RpsGame currentRpsGame;
 
+    private TttGame currentTttGame;
+
     public synchronized boolean addClient(ClientConnection client) {
         if (hasClient(client)) {
             return false;
@@ -74,6 +76,10 @@ public class ClientManager {
 
     public synchronized boolean IsRpsGameRunning() {
         return currentRpsGame != null;
+    }
+
+    public synchronized boolean IsTttGameRunning() {
+        return currentTttGame != null;
     }
 
     public synchronized void startRpsGame(String usernamePlayer1, String usernamePlayer2, int choicePlayer1) {

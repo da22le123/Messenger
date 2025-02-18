@@ -87,7 +87,6 @@ public class FileTransferHandler {
         String mode = currentFileTransferStatus == 1 ? "_s" : "_r";
 
         fileOut.println(fileUUID.uuid() + mode);
-        System.out.println("sent " + fileUUID.uuid() + mode + " to server");
         switch (currentFileTransferStatus) {
             case 1 -> new Thread(() -> sendFile(filePathSending, fileTransferSocket)).start();
             case 2 -> new Thread(this::receiveFile).start();

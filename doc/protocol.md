@@ -362,12 +362,12 @@ C2 has to include the sender's username in the response to let server know which
 C2 -> S: FILE_RESP {"sender":"<C1_username>","status":"OK"}
 ```
 
-C2 -> S FILE_RESP status options: 
+C2 -> S FILE_RESP status options:
 
 - OK - the transfer was accepted.
 - ERROR - the transfer was rejected.
 
-Code options: 
+Code options:
 
 - 0 - OK, transfer accepted (can be omitted)
 - 9003 - transfer rejected
@@ -454,6 +454,128 @@ Possible `<error code>`:
 | 9003       | The client that receives the file rejected the file transfer.                             |
 | 9004       | The client sent a FILE_RESP that contains a sender which did not request a file transfer. |
 
+# 11. Tic Tac Toe game
+
+Start a game of rock paper scissors with another client.
+
+## 11.1 Happy flow
+
+Client sends a request to start a game of rock paper scissors with another client.
+
+### C1
+
+```
+C1 -> S: TTT_REQ {"opponent":"<C2_username>","move":"<move>"}
+```
+
+Client receives the move of the opponent as follows:
+
+```
+S -> C1: TTT {"board":"<board>"}
+```
+
+Client makes a move:
+
+```
+C1 -> S: TTT_MOVE {"move":"<move>"}
+```
+
+Server responds to the move:
+
+```
+C1 -> S: TTT_MOVE_RESP {"status":"OK", "board":"<board>"}
+```
+
+Client receives the result of the game as follows:
+
+```
+S -> C1: TTT_RESULT {"status":"OK","game_result":"<game_result>","board":"<board>"}
+```
+
+### C2
+
+"Opponent" client receives the message as follows:
+
+```
+S -> C2: TTT_REQ {"opponent":"<C1_username>", "board":"<board>"}
+```
+
+"Opponent" client sends a response to the game request as follows:
+
+```
+C2 -> S: TTT_RESP {"status":"OK"}
+```
+
+"Opponent" makes a move as follows:
+
+```
+C2 -> S: TTT_MOVE {"move":"<move>"}
+```
+
+"Opponent" client receives the result of the game as follows:
+
+```
+S -> C2: TTT_RESULT {"status":"OK","game_result":"<game_result>","board":"<board>"}
+```
+
+- `<C1_username>`: the username of the user that sends the TTT request.
+- `<C2_username>`: the username of the user that is challenged to play the game.
+- `<move>`: the move of the user. Can be specified within the range of 0-8. (0 to 2 inclusive for the first row, 3 to 5
+  inclusive for the second row, and 6 to 8 inclusive for the third row).
+- `<board>`: the current state of the board. The representation of the board is just an array of 9 elements. Each
+  element
+  can be one of the following values: `.`, `X`, `O`.
+-
+
+Possible `<game_result>`:
+
+| Game result | Description                                         |
+|-------------|-----------------------------------------------------|
+| 0           | The client that had started the game (C1) has won   |
+| 1           | The client that was challenged to play (C2) has won |
+| 2           | The game ended with draw                            |
+
+## 11.2 Unhappy flow
+
+If client tries to send a move, and it is not their turn to make a move or the move was illegal, the server will respond 
+
+```
+C-> S: TTT_MOVE {"move":"<move>"}
+```
+
+```
+S -> C: TTT_MOVE_RESP {"status": "ERROR", "code": <error code>, "board":"<board>"}
+```
+
+
+Depending on the error code, different client participating in the game receives the following message:
+
+```
+S -> C: TTT_RESULT {"status": "ERROR", "code": <error code>}
+```
+
+In case of error code 2001:
+
+```
+S -> C: TTT_RESULT {"status": "ERROR", "code": <error code>, "now_playing":"{[<username1>, <username2]>}"}
+```
+
+- `<username1>, <username2>`: the usernames of the clients that are currently playing the game.
+
+Possible `<error code>`:
+
+- Client that sends the TTT request: **C1**
+- Client that receives the message: **C2**
+
+| Error code | Description                                                                     | Client that receives the message |
+|------------|---------------------------------------------------------------------------------|----------------------------------|
+| 2000       | The client that sends a TTT request is not logged in.                           | C1                               |
+| 2001       | There is already a TTT game going on on the server.                             | C1                               |
+| 2002       | The client that sends a TTT request specified non existent opponent's username. | C1                               |
+| 2003       | The client sent a request, specifying himself as an opponent.                   | C1                               |
+| 2004       | The client that sends a TTT_MOVE specified illegal move.                        | The client that sent TTT_MOVE    |
+| 2005       | The client that receives a TTT request has rejected it.                         | C1                               |
+| 2006       | The client sent a TTT_MOVE when it is not their turn.                           | The client that sent TTT_MOVE    |
 
 
 

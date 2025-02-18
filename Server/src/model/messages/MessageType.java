@@ -32,5 +32,11 @@ public enum MessageType {
     HANGUP,
     PARSE_ERROR,
     PONG_ERROR,
-    UNKNOWN_COMMAND
+    UNKNOWN_COMMAND,
+    TTT_REQ,
+    TTT,
+    TTT_MOVE,
+    TTT_RESULT,
+    TTT_RESP,
+    TTT_MOVE_RESP,
 }
