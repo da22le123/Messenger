@@ -1,10 +1,11 @@
 package model.messages.receive;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import model.messages.Status;
 
-public record TttResult(Status status, int gameResult, String[] board, String[] nowPlaying) implements Creator<TttResult>{
+public record TttResult(Status status, @JsonProperty("game_result") int gameResult,@JsonProperty("board")  String[] board,@JsonProperty("now_playing")  String[] nowPlaying) implements Creator<TttResult>{
     @Override
     public TttResult create(String json) throws JsonProcessingException {
         ObjectMapper objectMapper = new ObjectMapper();

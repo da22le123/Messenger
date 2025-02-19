@@ -118,7 +118,13 @@ public class StatusFactory {
             return new Status("ERROR", 2003);
         }
 
-        if ()
+        ///  atp the move can be illegal only if it is out of range
+        if (move < 0 || move > 8) {
+            return new Status("ERROR", 2004);
+        }
+
+        // all checks passed
+        return new Status("OK", 0);
     }
 
     /**
@@ -153,6 +159,18 @@ public class StatusFactory {
         }
 
         // all checks passed
+        return new Status("OK", 0);
+    }
+
+    public Status createTttMoveStatus(ClientConnection player, int move) {
+        if (!clientManager.getCurrentTttGame().getNextPlayerToMove().equals(player)) {
+            return new Status("ERROR", 2006);
+        }
+
+        if (!clientManager.getCurrentTttGame().isLegalMove(move)) {
+            return new Status("ERROR", 2004);
+        }
+
         return new Status("OK", 0);
     }
 

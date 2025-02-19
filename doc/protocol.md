@@ -537,6 +537,9 @@ Possible `<game_result>`:
 
 ## 11.2 Unhappy flow
 
+If client tries to send a TTT request, and something goes wrong, the server will respond 
+
+
 If client tries to send a move, and it is not their turn to make a move or the move was illegal, the server will respond 
 
 ```
@@ -573,7 +576,7 @@ Possible `<error code>`:
 | 2001       | There is already a TTT game going on on the server.                             | C1                               |
 | 2002       | The client that sends a TTT request specified non existent opponent's username. | C1                               |
 | 2003       | The client sent a request, specifying himself as an opponent.                   | C1                               |
-| 2004       | The client that sends a TTT_MOVE specified illegal move.                        | The client that sent TTT_MOVE    |
+| 2004       | The client that sends a TTT_MOVE or TTT_REQ specified illegal move.             | The client that sent the move    |
 | 2005       | The client that receives a TTT request has rejected it.                         | C1                               |
 | 2006       | The client sent a TTT_MOVE when it is not their turn.                           | The client that sent TTT_MOVE    |
 

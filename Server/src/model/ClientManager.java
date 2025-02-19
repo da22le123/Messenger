@@ -5,13 +5,9 @@ import model.messages.send.RpsResult;
 import model.messages.send.Sendable;
 import model.messages.send.Status;
 
-import java.io.BufferedReader;
 import java.io.PrintWriter;
-import java.nio.Buffer;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class ClientManager {
     private final List<ClientConnection> clients = new ArrayList<>();
@@ -70,7 +66,7 @@ public class ClientManager {
         }
     }
 
-    public synchronized String[] getNowPlaying() {
+    public synchronized String[] getNowPlayingRps() {
         return new String[]{currentRpsGame.getPlayer1().getUsername(), currentRpsGame.getPlayer2().getUsername()};
     }
 
@@ -110,8 +106,24 @@ public class ClientManager {
         currentRpsGame = null;
     }
 
-    public boolean isPlayingNow(ClientConnection client) {
+    public void abortTttGame() {
+        currentTttGame = null;
+    }
+
+    public boolean isPlayingRpsNow(ClientConnection client) {
         return currentRpsGame != null && (currentRpsGame.getPlayer1().equals(client) || currentRpsGame.getPlayer2().equals(client));
+    }
+
+    /**
+     * Get current players of the ttt game
+     * @return the username of the player that is currently playing, or empty array if no game is running
+     */
+    public synchronized String[] getNowPlayingTtt() {
+        if (!IsTttGameRunning()) {
+            return new String[]{}; // empty array
+        }
+
+        return currentTttGame.getCurrentPlayerUsernames();
     }
 
     public synchronized void addAwaitingAcceptanceClient(ClientConnection client) {
@@ -126,6 +138,67 @@ public class ClientManager {
         return awaitingAcceptance.stream().anyMatch(clientConnection -> clientConnection.getUsername().equals(client));
     }
 
+    public synchronized TttGame getCurrentTttGame() {
+        return currentTttGame;
+    }
 
+    public synchronized void startTttGame(ClientConnection player1, ClientConnection player2) {
+        currentTttGame = new TttGame(player1, player2);
+    }
 
+    public synchronized boolean addTttMove(int move, ClientConnection player) {
+        if (currentTttGame.getNextPlayerToMove() != player) {
+            return false;
+        }
+
+        String playerSymbol = "";
+
+        if (player.equals(currentTttGame.getPlayer1())) {
+            playerSymbol = "X";
+        } else if (player.equals(currentTttGame.getPlayer2())) {
+            playerSymbol = "O";
+        }
+
+        return currentTttGame.makeMove(move, playerSymbol);
+    }
+
+    public synchronized void setNextPlayerToMove(ClientConnection player) {
+        currentTttGame.setNextPlayerToMove(player);
+    }
+
+    public void swapNextPlayerToMove() {
+        currentTttGame.swapNextPlayerToMove();
+    }
+
+    /**
+     * Returns the current game result.
+     *
+     * @return 0 - player1 won, 1 - player2 won, 2 - draw, -1 - game is not over yet
+     */
+    public int getTttResult() {
+        switch (currentTttGame.checkWinner()) {
+            case "X" -> {
+                return 0;
+            }
+            case "O" -> {
+                return 1;
+            }
+            case "draw" -> {
+                return 2;
+            }
+            default -> {
+                return -1;
+            }
+        }
+    }
+
+    public synchronized ClientConnection getTttOpponent (ClientConnection player) {
+        if (currentTttGame.getPlayer1().equals(player)) {
+            return currentTttGame.getPlayer2();
+        } else if (currentTttGame.getPlayer2().equals(player)) {
+            return currentTttGame.getPlayer1();
+        }
+
+        return null;
+    }
 }

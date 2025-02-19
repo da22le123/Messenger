@@ -1,6 +1,8 @@
 package model;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import model.messages.MessageType;
 import model.messages.messagefactories.StatusFactory;
 import model.messages.receive.*;
@@ -68,7 +70,7 @@ public class ClientConnection {
         }).start();
     }
 
-    private void processMessage(String clientMessage) throws JsonProcessingException, InterruptedException {
+    private void processMessage(String clientMessage) throws IOException, InterruptedException {
         // Split the message into two parts: the type and the rest
         String[] parts = clientMessage.split(" ", 2); // Limit to 2 splits
         // parse the message type
@@ -87,6 +89,8 @@ public class ClientConnection {
             case FILE_REQ -> handleFileRequest(payload);
             case FILE_RESP -> handleFileResponse(payload);
             case TTT_REQ -> handleTttRequest(payload);
+            case TTT_RESP -> handleTttResponse(payload);
+            case TTT_MOVE -> handleTttMove(payload);
             case BYE -> handleBye();
         }
     }
@@ -142,7 +146,7 @@ public class ClientConnection {
         RpsResult rpsResult = new RpsResult(status);
         if (!rpsResult.getStatus().isOk()) {
             if (rpsResult.getStatus().code()==3001) {
-                rpsResult.setNowPlaying(clientManager.getNowPlaying());
+                rpsResult.setNowPlaying(clientManager.getNowPlayingRps());
             }
 
             sendMessage(rpsResult);
@@ -192,23 +196,98 @@ public class ClientConnection {
         }
     }
 
+
+
+
+
+
+
+
+
+
     private void handleTttRequest(String payload) throws JsonProcessingException {
         TttRequestReceive tttRequest = TttRequestReceive.fromJson(payload);
 
-        Status status = new StatusFactory(clientManager).createTttResponseStatus(this.username, tttRequest.opponent());
+        Status status = new StatusFactory(clientManager).createTttResponseStatus(this.username, tttRequest.opponent(), tttRequest.move());
 
-        if (status != null) {
-            sendMessage(new Response(MessageType.TTT_RESP, status));
-        } else {
-            throw new RuntimeException("No response was created by the factory.");
+
+        if (!status.isOk()) {
+            if (status.code()==2001) {
+                TttResult nowPlayingResult = TttResult.fromStatusNNowPlaying(status, clientManager.getNowPlayingTtt());
+                sendMessage(nowPlayingResult);
+            } else {
+                sendMessage(new Response(MessageType.TTT_RESULT, status));
+            }
+            return;
         }
 
-        if (status.isOk()) {
-            ClientConnection opponent = clientManager.getClientByUsername(tttRequest.opponent());
-            opponent.sendMessage(new Ttt(this.username));
-            clientManager.startTttGame(this.username, tttRequest.opponent());
+        ClientConnection opponent = clientManager.getClientByUsername(tttRequest.opponent());
+
+        clientManager.startTttGame(this, opponent);
+        clientManager.addTttMove(tttRequest.move(), this);
+
+        opponent.sendMessage(new TttRequestSend(this.username, clientManager.getCurrentTttGame().getBoard()));
+    }
+
+    private void handleTttResponse(String payload) throws IOException {
+        TttResponse tttResponse = TttResponse.fromJson(payload);
+
+        // if ok, add C2 as the next player to make a move
+        if (tttResponse.status().isOk()) {
+            clientManager.setNextPlayerToMove(this);
+        }
+        // if not ok, send the result to the first player, notifying that the request has been rejected
+        else if (tttResponse.status().code()==2005) {
+            Status status = new Status(tttResponse.status().status(), tttResponse.status().code());
+            TttResult result = TttResult.fromStatus(status);
+            clientManager.getCurrentTttGame().getPlayer1().sendMessage(result);
+            clientManager.abortTttGame();
         }
     }
+
+    private void handleTttMove(String payload) throws JsonProcessingException {
+        TttMove tttMove = TttMove.fromJson(payload);
+
+        Status status = new StatusFactory(clientManager).createTttMoveStatus(this, tttMove.move());
+        // get the opponent
+        ClientConnection opponent = clientManager.getTttOpponent(this);
+
+        // if the move is valid, add it to the board and check if the game has ended, if not,
+        // swap the next player to move and send the move response
+        if (status.isOk()) {
+            clientManager.addTttMove(tttMove.move(), this);
+            int gameResult = clientManager.getTttResult();
+
+            // if the game has ended, send the result to both players
+            if (gameResult != -1) {
+                sendMessage(TttResult.fromStatusNGameResultNBoard(new Status("OK", 0), gameResult, clientManager.getCurrentTttGame().getBoard()));
+                opponent.sendMessage(TttResult.fromStatusNGameResultNBoard(new Status("OK", 0), gameResult, clientManager.getCurrentTttGame().getBoard()));
+                clientManager.abortTttGame();
+                return;
+            }
+
+            clientManager.swapNextPlayerToMove();
+        }
+
+        //respond to the move
+        sendMessage(new TttMoveResponse(status, clientManager.getCurrentTttGame().getBoard()));
+
+
+        // send the move to the opponent if the move was valid
+        if (status.isOk()) {
+            opponent.sendMessage(new Ttt(clientManager.getCurrentTttGame().getBoard()));
+        }
+    }
+
+
+
+
+
+
+
+
+
+
 
     private void handleUserlist() {
         List<String> usernames =  clientManager.getClients().stream()
@@ -253,7 +332,7 @@ public class ClientConnection {
     }
 
     private void cleanUp() {
-        if (clientManager.isPlayingNow(this)) {
+        if (clientManager.isPlayingRpsNow(this)) {
             clientManager.abortRpsGame();
         }
         clientManager.removeClient(this);

@@ -1,17 +1,11 @@
 package model;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import model.handlers.ChatHandler;
-import model.handlers.EnterHandler;
-import model.handlers.FileTransferHandler;
-import model.handlers.RpsHandler;
+import model.handlers.*;
 import model.messages.MessageType;
-import model.messages.receive.ReceivedBroadcastMessage;
-import model.messages.receive.UserlistMessage;
-import model.messages.send.FileRequest;
-import model.messages.send.RpsRequest;
-import model.messages.send.Sendable;
-import model.messages.send.TttRequestSend;
+import model.messages.Status;
+import model.messages.receive.*;
+import model.messages.send.*;
 import utils.CheckSumCalculator;
 import utils.MessageParser;
 
@@ -21,6 +15,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.security.NoSuchAlgorithmException;
+import java.sql.SQLOutput;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -47,6 +42,7 @@ public class Client {
     private final EnterHandler enterHandler;
     private final RpsHandler rpsHandler;
     private final FileTransferHandler fileTransferHandler;
+    private final TttHandler tttHandler;
 
 
     public Client(String ipAddress, int port) throws IOException, InterruptedException {
@@ -65,6 +61,7 @@ public class Client {
         enterHandler = new EnterHandler(messageSender);
         rpsHandler = new RpsHandler(chatHandler);
         fileTransferHandler = new FileTransferHandler(chatHandler, ipAddress);
+        tttHandler = new TttHandler(chatHandler, messageSender);
 
         setUpListenerThread().start();
         logIn();
@@ -157,6 +154,14 @@ public class Client {
             case FILE_RESP -> fileTransferHandler.handleFileResponse(payload);
 
             case FILE_UUID -> fileTransferHandler.handleFileUUID(payload);
+
+            case TTT_RESULT -> tttHandler.handleTttResult(payload);
+
+            case TTT_REQ -> tttHandler.handleTttRequest(payload);
+
+            case TTT_MOVE_RESP -> tttHandler.handleTttMoveResponse(payload);
+
+            case TTT -> tttHandler.handleTtt(payload);
 
             case JOINED -> enterHandler.handleUserJoining(payload);
 
@@ -317,5 +322,6 @@ public class Client {
         int move = Integer.parseInt(sc.nextLine());
 
         sendMessage(new TttRequestSend(opponent, move));
+        tttHandler.setIsPlayer1(true);
     }
 }

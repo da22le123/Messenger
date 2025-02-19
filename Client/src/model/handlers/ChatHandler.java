@@ -2,26 +2,34 @@ package model.handlers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import model.MessageSender;
+import model.messages.Status;
 import model.messages.receive.ReceivedBroadcastMessage;
 import model.messages.receive.ReceivedDirectMessage;
-import model.messages.Status;
-import model.messages.send.BroadcastRequest;
-import model.messages.send.DmRequest;
-import model.messages.send.FileResponseSend;
-import model.messages.send.RpsResponse;
+import model.messages.send.*;
 import utils.MessageParser;
 
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.Scanner;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class ChatHandler {
-    private static final String DESCRIPTION = "The chat with other users has started.\n" + "Type /quitchat to exit the chat.\n" + "Type /dm <recipient> <message> to send a direct message to a user.\n" + "Type /rps <choice> to play rock-paper-scissors to respond the incoming game request.\n" + "Type /file_requests to view all senders that sent a file request.\n" + "Type /file_answer <sender> <yes/no> to answer to the incoming file transfer request.\n" + "Type /help to see all available commands again.\n";
+    private static final String DESCRIPTION =
+            "The chat with other users has started.\n" +
+            "Type /quitchat to exit the chat.\n" +
+            "Type /dm <recipient> <message> to send a direct message to a user.\n" +
+            "Type /rps <choice> to play rock-paper-scissors to respond the incoming game request.\n" +
+            "Type /file_requests to view all senders that sent a file request.\n" +
+            "Type /file_answer <sender> <yes/no> to answer to the incoming file transfer request.\n" +
+            "Type /ttt_answer <yes/no> to respond to the incoming game request.\n" +
+            "Type /ttt_move <move> to make a move in the ttt game.\n" +
+            "Type /help to see all available commands again.\n";
 
     private final MessageSender messageSender;
-    boolean isInChat = false;
-    boolean isReceivedRps = false;
+    private boolean isInChat = false;
+    private boolean isReceivedRps = false;
+    private boolean isReceivedTtt = false;
     private final ArrayList<ReceivedBroadcastMessage> unseenMessages;
     private final ArrayList<ReceivedDirectMessage> unseenDirectMessages;
     private final ArrayList<String> incomingFileRequests;
@@ -89,19 +97,28 @@ public class ChatHandler {
                         isInChat = false;
                     } else
 
-                        // view all incoming file requests
-                        if (message.equals("/file_requests")) {
-                            fileRequestsCommand();
+                        // answer to the incoming ttt game request
+                        if (message.startsWith("/ttt_answer")) {
+                            tttAnswerCommand(message);
                         } else
+                            // make a move in the ttt game
+                            if (message.startsWith("/ttt_move")) {
+                                tttMoveCommand(message);
+                            } else
 
-                            // answer to the incoming file transfer request     // view description
-                            if (message.startsWith("/file_answer")) {
-                                fileAnswerCommand(message);
-                            } else if (message.equals("/help")) {
-                                System.out.println(DESCRIPTION);
-                            } else {
-                                messageSender.sendMessage(new BroadcastRequest(message));
-                            }
+                                // view all incoming file requests
+                                if (message.equals("/file_requests")) {
+                                    fileRequestsCommand();
+                                } else
+
+                                    // answer to the incoming file transfer request     // view description
+                                    if (message.startsWith("/file_answer")) {
+                                        fileAnswerCommand(message);
+                                    } else if (message.equals("/help")) {
+                                        System.out.println(DESCRIPTION);
+                                    } else {
+                                        messageSender.sendMessage(new BroadcastRequest(message));
+                                    }
         }
 
         unseenMessages.clear();
@@ -162,6 +179,42 @@ public class ChatHandler {
         int choice = Integer.parseInt(parts[1]);
         messageSender.sendMessage(new RpsResponse(choice));
         setReceivedRps(false);
+    }
+
+    private void tttAnswerCommand(String message) throws JsonProcessingException {
+        if (!isReceivedTtt) {
+            System.out.println("You have no incoming game requests.");
+            return;
+        }
+
+        String[] parts = message.split(" ", 2);
+        String answer = parts[1];
+
+        switch (answer.toLowerCase(Locale.ROOT)) {
+            case "yes":
+                messageSender.sendMessage(new TttResponse(new Status("OK", 0)));
+                System.out.println("You have accepted the game request. Your opponent has already made the first move (see the current board above).");
+                System.out.println("Please, enter your move via /ttt_move <move> command.");
+                break;
+            case "no":
+                messageSender.sendMessage(new TttResponse(new Status("ERROR", 2005)));
+                System.out.println("You have declined the game request.");
+                break;
+            default:
+                System.out.println("Invalid choice. Please type 'yes' or 'no'.");
+        }
+    }
+
+    private void tttMoveCommand(String message) throws JsonProcessingException {
+        String[] parts = message.split(" ", 2);
+        if (parts.length != 2) {
+            System.out.println("Invalid command. Please type '/ttt_move <move>'");
+            return;
+        }
+
+        int move = Integer.parseInt(message.split(" ", 2)[1].trim());
+        messageSender.sendMessage(new TttMove(move));
+        System.out.println("Your move has been sent.");
     }
 
     private void dmCommand(String message) throws JsonProcessingException, InterruptedException {
@@ -254,6 +307,10 @@ public class ChatHandler {
 
     public void setReceivedRps(boolean receivedRps) {
         isReceivedRps = receivedRps;
+    }
+
+    public void setReceivedTtt(boolean receivedTtt) {
+        isReceivedTtt = receivedTtt;
     }
 
     public void addIncomingFileRequest(String sender) {
