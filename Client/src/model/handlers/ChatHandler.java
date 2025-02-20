@@ -39,6 +39,10 @@ public class ChatHandler {
     private boolean isResponseReceived;
     private final Condition responseReceived;
 
+    private String[] currentTttBoard;
+    private boolean isPlayer1;
+
+
     public ChatHandler(MessageSender messageSender) {
         unseenMessages = new ArrayList<>();
         unseenDirectMessages = new ArrayList<>();
@@ -198,6 +202,9 @@ public class ChatHandler {
                 break;
             case "no":
                 messageSender.sendMessage(new TttResponse(new Status("ERROR", 2005)));
+                setReceivedTtt(false);
+                //reset the board
+                setCurrentTttBoard(new String[]{" ", " ", " ", " ", " ", " ", " ", " ", " "});
                 System.out.println("You have declined the game request.");
                 break;
             default:
@@ -213,7 +220,8 @@ public class ChatHandler {
         }
 
         int move = Integer.parseInt(message.split(" ", 2)[1].trim());
-        messageSender.sendMessage(new TttMove(move));
+        String[] newBoard = TttHandler.applyMove(currentTttBoard, move, isPlayer1);
+        messageSender.sendMessage(new TttMove(newBoard));
         System.out.println("Your move has been sent.");
     }
 
@@ -325,6 +333,25 @@ public class ChatHandler {
         }
         return false;
     }
+
+    public String[] getCurrentTttBoard() {
+        return currentTttBoard;
+    }
+
+    public void setCurrentTttBoard(String[] currentTttBoard) {
+        this.currentTttBoard = currentTttBoard;
+    }
+
+    public boolean isPlayer1() {
+        return isPlayer1;
+    }
+
+    public void setIsPlayer1(boolean isPlayer1) {
+        this.isPlayer1 = isPlayer1;
+    }
+
+
+
 
 
 }

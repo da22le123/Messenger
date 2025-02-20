@@ -465,7 +465,7 @@ Client sends a request to start a game of rock paper scissors with another clien
 ### C1
 
 ```
-C1 -> S: TTT_REQ {"opponent":"<C2_username>","move":"<move>"}
+C1 -> S: TTT_REQ {"opponent":"<C2_username>","board":"<board>"}
 ```
 
 Client receives the move of the opponent as follows:
@@ -477,7 +477,7 @@ S -> C1: TTT {"board":"<board>"}
 Client makes a move:
 
 ```
-C1 -> S: TTT_MOVE {"move":"<move>"}
+C1 -> S: TTT_MOVE {"board":"<board>"}
 ```
 
 Server responds to the move:
@@ -509,7 +509,7 @@ C2 -> S: TTT_RESP {"status":"OK"}
 "Opponent" makes a move as follows:
 
 ```
-C2 -> S: TTT_MOVE {"move":"<move>"}
+C2 -> S: TTT_MOVE {"board":"<board>"}
 ```
 
 "Opponent" client receives the result of the game as follows:
@@ -520,10 +520,8 @@ S -> C2: TTT_RESULT {"status":"OK","game_result":"<game_result>","board":"<board
 
 - `<C1_username>`: the username of the user that sends the TTT request.
 - `<C2_username>`: the username of the user that is challenged to play the game.
-- `<move>`: the move of the user. Can be specified within the range of 0-8. (0 to 2 inclusive for the first row, 3 to 5
-  inclusive for the second row, and 6 to 8 inclusive for the third row).
 - `<board>`: the current state of the board. The representation of the board is just an array of 9 elements. Each
-  element
+  element. In case of TTT_MOVE_RESP it is sent back to confirm that the move was registered.
   can be one of the following values: `.`, `X`, `O`.
 -
 
@@ -540,16 +538,17 @@ Possible `<game_result>`:
 If client tries to send a TTT request, and something goes wrong, the server will respond 
 
 
-If client tries to send a move, and it is not their turn to make a move or the move was illegal, the server will respond 
+If client tries to send a move, and it is not their turn to make a move or the move was illegal
 
 ```
-C-> S: TTT_MOVE {"move":"<move>"}
+C-> S: TTT_MOVE {"board":"<board>"}
 ```
+
+The server will respond with the status of the move and the current state of the board (not including the illegal move):
 
 ```
 S -> C: TTT_MOVE_RESP {"status": "ERROR", "code": <error code>, "board":"<board>"}
 ```
-
 
 Depending on the error code, different client participating in the game receives the following message:
 
@@ -560,7 +559,7 @@ S -> C: TTT_RESULT {"status": "ERROR", "code": <error code>}
 In case of error code 2001:
 
 ```
-S -> C: TTT_RESULT {"status": "ERROR", "code": <error code>, "now_playing":"{[<username1>, <username2]>}"}
+S -> C: TTT_RESULT {"status": "ERROR", "code": <error code>, "now_playing":"{[<username1>, <username2>]}"}
 ```
 
 - `<username1>, <username2>`: the usernames of the clients that are currently playing the game.

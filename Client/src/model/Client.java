@@ -321,7 +321,7 @@ public class Client {
         System.out.println("Enter your move 0-8 (0 to 2 inclusive for the first row, 3 to 5 inclusive for the second row, and 6 to 8 inclusive for the third row): ");
         int move = Integer.parseInt(sc.nextLine());
 
-        sendMessage(new TttRequestSend(opponent, move));
-        tttHandler.setIsPlayer1(true);
+        sendMessage(new TttRequestSend(opponent, TttHandler.applyMove(chatHandler.getCurrentTttBoard(), move, true)));
+        chatHandler.setIsPlayer1(true);
     }
 }

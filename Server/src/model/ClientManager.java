@@ -146,20 +146,17 @@ public class ClientManager {
         currentTttGame = new TttGame(player1, player2);
     }
 
-    public synchronized boolean addTttMove(int move, ClientConnection player) {
-        if (currentTttGame.getNextPlayerToMove() != player) {
-            return false;
+    public synchronized boolean addTttMove(String[] newBoard) {
+        if (currentTttGame.isValidOpponentMove(newBoard)) {
+            currentTttGame.setBoard(newBoard);
+            return true;
         }
 
-        String playerSymbol = "";
+        return false;
+    }
 
-        if (player.equals(currentTttGame.getPlayer1())) {
-            playerSymbol = "X";
-        } else if (player.equals(currentTttGame.getPlayer2())) {
-            playerSymbol = "O";
-        }
-
-        return currentTttGame.makeMove(move, playerSymbol);
+    public synchronized void applyTttMove(String[] boardWithOpponentsMove) {
+        currentTttGame.setBoard(boardWithOpponentsMove);
     }
 
     public synchronized void setNextPlayerToMove(ClientConnection player) {

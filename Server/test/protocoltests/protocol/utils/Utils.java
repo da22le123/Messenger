@@ -34,7 +34,12 @@ public class Utils {
         objToNameMapping.put(Rps.class, "RPS");
         objToNameMapping.put(RpsRequest.class, "RPS_REQ");
         objToNameMapping.put(RpsResponse.class, "RPS_RESP");
-        objToNameMapping.put(RpsResult.class, "RPS_RESULT");
+        objToNameMapping.put(TttRequest.class, "TTT_REQ");
+        objToNameMapping.put(TttResponse.class, "TTT_RESP");
+        objToNameMapping.put(TttResult.class, "TTT_RESULT");
+        objToNameMapping.put(TttMove.class, "TTT_MOVE");
+        objToNameMapping.put(TttMoveResponse.class, "TTT_MOVE_RESP");
+        objToNameMapping.put(Ttt.class, "TTT");
 
     }
 

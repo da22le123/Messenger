@@ -3,7 +3,7 @@ package model.messages.receive;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public record TttMove(int move) implements Creator<TttMove> {
+public record TttMove(String[] board) implements Creator<TttMove> {
     @Override
     public TttMove create(String json) throws JsonProcessingException {
         ObjectMapper objectMapper = new ObjectMapper();
@@ -11,6 +11,6 @@ public record TttMove(int move) implements Creator<TttMove> {
     }
 
     public static TttMove fromJson(String json) throws JsonProcessingException {
-        return new TttMove(0).create(json);
+        return new TttMove(new String[0]).create(json);
     }
 }

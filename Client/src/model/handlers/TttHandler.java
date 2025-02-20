@@ -18,11 +18,11 @@ public class TttHandler {
     // is needed to determine if the player is player1 or player2
     // player1 is the one who sends the request, player2 is the one who receives the request
     // the game result interpretation depends on this
-    private boolean isPlayer1;  
 
     public TttHandler(ChatHandler chatHandler, MessageSender messageSender) {
         this.chatHandler = chatHandler;
         this.messageSender = messageSender;
+        chatHandler.setCurrentTttBoard(new String[] {".", ".", ".", ".", ".", ".", ".", ".", "."});
     }
 
 
@@ -43,7 +43,7 @@ public class TttHandler {
         } else {
             switch (tttResult.gameResult()) {
                 case 0 -> {
-                    if (isPlayer1) {
+                    if (chatHandler.isPlayer1()) {
                         System.out.println("You won!");
                     }
                     else {
@@ -51,7 +51,7 @@ public class TttHandler {
                     }
                 }
                 case 1 -> {
-                    if (isPlayer1)
+                    if (chatHandler.isPlayer1())
                         System.out.println("You lost!");
                     else
                         System.out.println("You won!");
@@ -61,12 +61,15 @@ public class TttHandler {
 
             printTttBoard(tttResult.board());
         }
-        setIsPlayer1(false);
+        chatHandler.setIsPlayer1(false);
+        // Reset the board
+        chatHandler.setCurrentTttBoard(new String[] {".", ".", ".", ".", ".", ".", ".", ".", "."});
     }
 
     public void handleTttRequest(String payload) throws JsonProcessingException {
         TttRequestReceive tttRequest = TttRequestReceive.fromJson(payload);
         chatHandler.setReceivedTtt(true);
+        chatHandler.setCurrentTttBoard(tttRequest.board());
 
         if (chatHandler.isInChat()) {
             System.out.println("You received a request to play Tic-Tac-Toe against " + tttRequest.opponent() + ". Type /ttt_answer <yes/no> in order to respond.");
@@ -82,10 +85,13 @@ public class TttHandler {
 
         if (tttMoveResponse.status().isOk()) {
             System.out.println("Your move has been accepted. The board: ");
+            chatHandler.setCurrentTttBoard(tttMoveResponse.board());
             printTttBoard(tttMoveResponse.board());
         } 
         else if (tttMoveResponse.status().code()==2004){
             System.out.println("Your move was illegal! Try again via /ttt_move <move> command!");
+        } else if (tttMoveResponse.status().code()==2006) {
+            System.out.println("It is not your turn to make a move! Wait for your opponent to make a move!");
         }
     }
 
@@ -93,10 +99,12 @@ public class TttHandler {
         Ttt ttt = Ttt.fromJson(payload);
         if (!chatHandler.isInChat()) {
             System.out.println("Your ttt game opponent has made a move, below you will see the current state of board!");
+            chatHandler.setCurrentTttBoard(ttt.board());
             printTttBoard(ttt.board());
             System.out.println("In order to make your move, enter the chat and use /ttt_move <move> command. You are not in the chat!");
         } else {
             System.out.println("Your ttt game opponent has made a move, below you will see the current state of board!");
+            chatHandler.setCurrentTttBoard(ttt.board());
             printTttBoard(ttt.board());
             System.out.println("In order to make your move, use /ttt_move <move> command.");
         }
@@ -114,7 +122,16 @@ public class TttHandler {
         }
     }
 
-    public void setIsPlayer1(boolean isPlayer1) {
-        this.isPlayer1 = isPlayer1;
+    public static String[] applyMove(String[] board, int move, boolean isPlayer1) {
+        // Check if the move is within bounds
+        if (move < 0 || move >= board.length) {
+            System.out.println("Invalid move: " + move + ". Move must be between 0 and " + (board.length - 1) + ".");
+            return board;
+        }
+
+        // Place the appropriate marker ("X" for player1, "O" for player2)
+        board[move] = isPlayer1 ? "X" : "O";
+
+        return board;
     }
 }

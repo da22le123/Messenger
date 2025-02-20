@@ -43,35 +43,6 @@ public class TttGame {
 
     private String[] board = {".", ".", ".", ".", ".", ".", ".", ".", "."};
 
-    /**
-     * Checks if the move is legal.
-     * A legal move must be within 0-8 and the chosen cell must be empty ("-").
-     *
-     * @param move the board index (0-8)
-     * @return true if the move is legal, false otherwise
-     */
-    public boolean isLegalMove(int move) {
-        if (move < 0 || move > 8) {
-            return false;
-        }
-
-        return board[move].equals(".");
-    }
-
-    /**
-     * Makes a move on the board for the specified player.
-     *
-     * @param move the board index (0-8)
-     * @param player the player's symbol ("X" or "O")
-     * @return true if the move was made successfully, false if the move was illegal
-     */
-    public boolean makeMove(int move, String player) {
-        if (!isLegalMove(move)) {
-            return false;
-        }
-        board[move] = player;
-        return true;
-    }
 
     /**
      * Checks if there is a winner.
@@ -125,6 +96,10 @@ public class TttGame {
         return board;
     }
 
+    public void setBoard(String[] board) {
+        this.board = board;
+    }
+
     public String[] getCurrentPlayerUsernames() {
         return new String[]{player1.getUsername(), player2.getUsername()};
     }
@@ -151,5 +126,82 @@ public class TttGame {
      */
     public void swapNextPlayerToMove() {
         nextPlayerToMove = nextPlayerToMove.equals(player1) ? player2 : player1;
+    }
+
+    /**
+     * Validates that an opponent's board update is valid.
+     *
+     * The update is considered valid if:
+     * <ul>
+     *   <li>The new board has exactly one additional move (i.e. one cell that was "." is now non-empty).</li>
+     *   <li>The new move was made in an empty cell (no previous move was overwritten).</li>
+     *   <li>The new cell contains the symbol that is expected.
+     *       According to your spec, if nextPlayerToMove is player1 then the new cell must be "X";
+     *       if nextPlayerToMove is player2 then it must be "O".</li>
+     *   <li>All other cells remain unchanged and only valid symbols (".", "X", "O") are present.</li>
+     * </ul>
+     *
+     * @param newBoard a 1D array of Strings representing the updated board.
+     * @return true if the opponent’s move is valid; false otherwise.
+     */
+    public boolean isValidOpponentMove(String[] newBoard) {
+        // Check for null or wrong length
+        if (newBoard == null || newBoard.length != board.length) {
+            return false;
+        }
+
+        // Count non-empty cells in both boards.
+        int countOld = 0;
+        int countNew = 0;
+        for (int i = 0; i < board.length; i++) {
+            // Validate current board cell symbols.
+            if (!board[i].equals(".") && !board[i].equals("X") && !board[i].equals("O")) {
+                return false;
+            }
+            // Validate new board cell symbols.
+            if (!newBoard[i].equals(".") && !newBoard[i].equals("X") && !newBoard[i].equals("O")) {
+                return false;
+            }
+            if (!board[i].equals(".")) {
+                countOld++;
+            }
+            if (!newBoard[i].equals(".")) {
+                countNew++;
+            }
+            // No previous move should be overwritten.
+            // If the old cell is non-empty, it must remain unchanged.
+            if (!board[i].equals(".") && !board[i].equals(newBoard[i])) {
+                return false;
+            }
+        }
+        // The new board must have exactly one additional move.
+        if (countNew != countOld + 1) {
+            return false;
+        }
+
+        // Determine the expected symbol for the new move.
+        // According to your specification:
+        // - If nextPlayerToMove is player1, then the new cell should contain "X".
+        // - If nextPlayerToMove is player2, then it should be "O".
+        String expectedSymbol = nextPlayerToMove.equals(player1) ? "X" : "O";
+
+        // Identify the cell that changed and verify it holds the expected symbol.
+        boolean foundDifference = false;
+        for (int i = 0; i < board.length; i++) {
+            if (board[i].equals(".") && !newBoard[i].equals(".")) {
+                // Found a cell that changed. It must match the expected symbol.
+                if (!newBoard[i].equals(expectedSymbol)) {
+                    return false;
+                }
+                // Ensure that only one cell was modified.
+                if (foundDifference) { // This would indicate more than one change.
+                    return false;
+                }
+                foundDifference = true;
+            }
+        }
+
+        // If no difference was found, then no move was made.
+        return foundDifference;
     }
 }

@@ -5,6 +5,8 @@ import model.ClientManager;
 import model.messages.send.Status;
 import utils.ValidationUtils;
 
+import static utils.ValidationUtils.isValidBoard;
+
 public class StatusFactory {
     private ClientManager clientManager;
     public StatusFactory(ClientManager clientManager) {
@@ -98,7 +100,7 @@ public class StatusFactory {
         return new Status("OK", 0);
     }
 
-    public Status createTttResponseStatus(String C1, String C2, int move) {
+    public Status createTttResponseStatus(String C1, String C2, String[] boardWithOpponentsMove) {
         ClientConnection client1 = clientManager.getClientByUsername(C1);
         ClientConnection client2 = clientManager.getClientByUsername(C2);
 
@@ -118,8 +120,7 @@ public class StatusFactory {
             return new Status("ERROR", 2003);
         }
 
-        ///  atp the move can be illegal only if it is out of range
-        if (move < 0 || move > 8) {
+        if (!isValidBoard(boardWithOpponentsMove)) {
             return new Status("ERROR", 2004);
         }
 
@@ -162,12 +163,12 @@ public class StatusFactory {
         return new Status("OK", 0);
     }
 
-    public Status createTttMoveStatus(ClientConnection player, int move) {
+    public Status createTttMoveStatus(ClientConnection player, String[] newBoard) {
         if (!clientManager.getCurrentTttGame().getNextPlayerToMove().equals(player)) {
             return new Status("ERROR", 2006);
         }
 
-        if (!clientManager.getCurrentTttGame().isLegalMove(move)) {
+        if (!clientManager.getCurrentTttGame().isValidOpponentMove(newBoard)) {
             return new Status("ERROR", 2004);
         }
 

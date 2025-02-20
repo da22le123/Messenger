@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import model.messages.MessageType;
 
-public record TttRequestSend(String opponent, int move) implements Sendable {
+public record TttRequestSend(String opponent, String[] board) implements Sendable {
 
     @Override
     public String toJson() throws JsonProcessingException {

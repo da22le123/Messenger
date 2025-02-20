@@ -208,7 +208,7 @@ public class ClientConnection {
     private void handleTttRequest(String payload) throws JsonProcessingException {
         TttRequestReceive tttRequest = TttRequestReceive.fromJson(payload);
 
-        Status status = new StatusFactory(clientManager).createTttResponseStatus(this.username, tttRequest.opponent(), tttRequest.move());
+        Status status = new StatusFactory(clientManager).createTttResponseStatus(this.username, tttRequest.opponent(), tttRequest.board());
 
 
         if (!status.isOk()) {
@@ -216,7 +216,7 @@ public class ClientConnection {
                 TttResult nowPlayingResult = TttResult.fromStatusNNowPlaying(status, clientManager.getNowPlayingTtt());
                 sendMessage(nowPlayingResult);
             } else {
-                sendMessage(new Response(MessageType.TTT_RESULT, status));
+                sendMessage(TttResult.fromStatus(status));
             }
             return;
         }
@@ -224,7 +224,7 @@ public class ClientConnection {
         ClientConnection opponent = clientManager.getClientByUsername(tttRequest.opponent());
 
         clientManager.startTttGame(this, opponent);
-        clientManager.addTttMove(tttRequest.move(), this);
+        clientManager.addTttMove(tttRequest.board());
 
         opponent.sendMessage(new TttRequestSend(this.username, clientManager.getCurrentTttGame().getBoard()));
     }
@@ -248,14 +248,14 @@ public class ClientConnection {
     private void handleTttMove(String payload) throws JsonProcessingException {
         TttMove tttMove = TttMove.fromJson(payload);
 
-        Status status = new StatusFactory(clientManager).createTttMoveStatus(this, tttMove.move());
+        Status status = new StatusFactory(clientManager).createTttMoveStatus(this, tttMove.board());
         // get the opponent
         ClientConnection opponent = clientManager.getTttOpponent(this);
 
         // if the move is valid, add it to the board and check if the game has ended, if not,
         // swap the next player to move and send the move response
         if (status.isOk()) {
-            clientManager.addTttMove(tttMove.move(), this);
+            clientManager.addTttMove(tttMove.board());
             int gameResult = clientManager.getTttResult();
 
             // if the game has ended, send the result to both players
