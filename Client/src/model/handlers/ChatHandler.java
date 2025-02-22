@@ -15,16 +15,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class ChatHandler {
-    private static final String DESCRIPTION =
-            "The chat with other users has started.\n" +
-            "Type /quitchat to exit the chat.\n" +
-            "Type /dm <recipient> <message> to send a direct message to a user.\n" +
-            "Type /rps <choice> to play rock-paper-scissors to respond the incoming game request.\n" +
-            "Type /file_requests to view all senders that sent a file request.\n" +
-            "Type /file_answer <sender> <yes/no> to answer to the incoming file transfer request.\n" +
-            "Type /ttt_answer <yes/no> to respond to the incoming game request.\n" +
-            "Type /ttt_move <move> to make a move in the ttt game.\n" +
-            "Type /help to see all available commands again.\n";
+    private static final String DESCRIPTION = "The chat with other users has started.\n" + "Type /quitchat to exit the chat.\n" + "Type /dm <recipient> <message> to send a direct message to a user.\n" + "Type /rps <choice> to play rock-paper-scissors to respond the incoming game request.\n" + "Type /file_requests to view all senders that sent a file request.\n" + "Type /file_answer <sender> <yes/no> to answer to the incoming file transfer request.\n" + "Type /ttt_answer <yes/no> to respond to the incoming game request.\n" + "Type /ttt_move <move> to make a move in the ttt game.\n" + "Type /help to see all available commands again.\n";
 
     private final MessageSender messageSender;
     private boolean isInChat = false;
@@ -349,9 +340,4 @@ public class ChatHandler {
     public void setIsPlayer1(boolean isPlayer1) {
         this.isPlayer1 = isPlayer1;
     }
-
-
-
-
-
 }

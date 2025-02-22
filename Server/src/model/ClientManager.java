@@ -114,6 +114,10 @@ public class ClientManager {
         return currentRpsGame != null && (currentRpsGame.getPlayer1().equals(client) || currentRpsGame.getPlayer2().equals(client));
     }
 
+    public boolean isPlayingTttNow(ClientConnection client) {
+        return currentTttGame != null && (currentTttGame.getPlayer1().equals(client) || currentTttGame.getPlayer2().equals(client));
+    }
+
     /**
      * Get current players of the ttt game
      * @return the username of the player that is currently playing, or empty array if no game is running
@@ -128,10 +132,6 @@ public class ClientManager {
 
     public synchronized void addAwaitingAcceptanceClient(ClientConnection client) {
         awaitingAcceptance.add(client);
-    }
-
-    public synchronized void removeAwaitingAcceptanceClient(ClientConnection client) {
-        awaitingAcceptance.remove(client);
     }
 
     public synchronized boolean isAwaitingAcceptance(String client) {
@@ -153,10 +153,6 @@ public class ClientManager {
         }
 
         return false;
-    }
-
-    public synchronized void applyTttMove(String[] boardWithOpponentsMove) {
-        currentTttGame.setBoard(boardWithOpponentsMove);
     }
 
     public synchronized void setNextPlayerToMove(ClientConnection player) {

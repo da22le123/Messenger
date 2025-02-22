@@ -1,4 +1,4 @@
 package protocoltests.protocol.messages;
 
-public record TttMove(int move) {
+public record TttMove(String[] board) {
 }

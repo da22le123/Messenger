@@ -27,16 +27,12 @@ public class ClientConnection {
     private final Socket socket;
     private final PrintWriter out;
     private final BufferedReader in;
-    //private boolean isPongReceived;
 
     private ClientManager clientManager;
     private FileTransferManager fileTransferManager;
 
-
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final ReentrantLock lock = new ReentrantLock();
-    private final Condition rpsResponseReceived = lock.newCondition();
-    private volatile boolean isRpsResponseReceived = false;
     private final Condition pongReceived = lock.newCondition();
     private volatile boolean isPongReceived = false;
     private volatile boolean isPingSent = false;
@@ -196,15 +192,6 @@ public class ClientConnection {
         }
     }
 
-
-
-
-
-
-
-
-
-
     private void handleTttRequest(String payload) throws JsonProcessingException {
         TttRequestReceive tttRequest = TttRequestReceive.fromJson(payload);
 
@@ -231,6 +218,11 @@ public class ClientConnection {
 
     private void handleTttResponse(String payload) throws IOException {
         TttResponse tttResponse = TttResponse.fromJson(payload);
+
+        if (clientManager.getCurrentTttGame()==null || clientManager.getCurrentTttGame().getNumberOfMovesOnTheBoard() != 1) {
+            sendMessage(TttResult.fromStatus(new Status("ERROR", 2007)));
+            return;
+        }
 
         // if ok, add C2 as the next player to make a move
         if (tttResponse.status().isOk()) {
@@ -334,6 +326,9 @@ public class ClientConnection {
     private void cleanUp() {
         if (clientManager.isPlayingRpsNow(this)) {
             clientManager.abortRpsGame();
+        }
+        if (clientManager.isPlayingTttNow(this)) {
+            clientManager.abortTttGame();
         }
         clientManager.removeClient(this);
         scheduler.shutdownNow();

@@ -39,10 +39,7 @@ public class TttGame {
         return player2;
     }
 
-
-
     private String[] board = {".", ".", ".", ".", ".", ".", ".", ".", "."};
-
 
     /**
      * Checks if there is a winner.
@@ -203,5 +200,15 @@ public class TttGame {
 
         // If no difference was found, then no move was made.
         return foundDifference;
+    }
+
+    public int getNumberOfMovesOnTheBoard() {
+        int count = 0;
+        for (String cell : board) {
+            if (!cell.equals(".")) {
+                count++;
+            }
+        }
+        return count;
     }
 }

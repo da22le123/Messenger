@@ -14,19 +14,14 @@ import java.util.Scanner;
 
 public class TttHandler {
     private final ChatHandler chatHandler;
-    private final MessageSender messageSender;
     // is needed to determine if the player is player1 or player2
     // player1 is the one who sends the request, player2 is the one who receives the request
     // the game result interpretation depends on this
 
     public TttHandler(ChatHandler chatHandler, MessageSender messageSender) {
         this.chatHandler = chatHandler;
-        this.messageSender = messageSender;
         chatHandler.setCurrentTttBoard(new String[] {".", ".", ".", ".", ".", ".", ".", ".", "."});
     }
-
-
-
 
     public void handleTttResult(String payload) throws JsonProcessingException {
         TttResult tttResult = TttResult.fromJson(payload);
@@ -109,7 +104,6 @@ public class TttHandler {
             System.out.println("In order to make your move, use /ttt_move <move> command.");
         }
     }
-
 
     public void printTttBoard(String[] board) {
         System.out.println("Current state of the board: ");

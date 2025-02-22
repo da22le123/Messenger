@@ -1,4 +1,4 @@
 package protocoltests.protocol.messages;
 
-public record TttRequest(String opponent, int move) {
+public record TttRequest(String opponent, String[] board) {
 }
