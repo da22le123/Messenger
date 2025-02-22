@@ -114,7 +114,7 @@ public class FileTransferHandler {
     public void receiveFile() {
         System.out.println("Receiving file...");
         try (InputStream in = fileTransferSocket.getInputStream();
-             FileOutputStream fileOut = new FileOutputStream("/Users/illiapavelko/" + fileName)) {
+             FileOutputStream fileOut = new FileOutputStream(fileName)) {
 
 
             // Copy the entire stream directly into the file
@@ -122,7 +122,7 @@ public class FileTransferHandler {
 
             System.out.println("File is completely received.");
 
-            String receivedFileChecksum = CheckSumCalculator.calculateSHA256("/Users/illiapavelko/" + fileName);
+            String receivedFileChecksum = CheckSumCalculator.calculateSHA256(fileName);
             if (currentFileTransferHash.equals(receivedFileChecksum)) {
                 System.out.println("File received successfully, the checksum of the file is the same as before sending it.");
             } else {

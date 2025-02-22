@@ -271,16 +271,6 @@ public class ClientConnection {
         }
     }
 
-
-
-
-
-
-
-
-
-
-
     private void handleUserlist() {
         List<String> usernames =  clientManager.getClients().stream()
                 .map(ClientConnection::getUsername)
@@ -387,7 +377,6 @@ public class ClientConnection {
     public void startPingScheduler() {
         scheduler.scheduleAtFixedRate(this::pingPong, 10, 10, TimeUnit.SECONDS);
     }
-
 
     private void hangUp() throws InterruptedException, JsonProcessingException {
         sendMessage(new HangupMessage(7000));
