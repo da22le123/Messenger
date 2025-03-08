@@ -49,7 +49,7 @@ public class Main {
                 System.out.println("Invalid input");
                 sc.nextLine();
             }
-        } while (option < 1 || option > 5);
+        } while (option < 1 || option > 6);
 
         switch (option) {
             case 1: {

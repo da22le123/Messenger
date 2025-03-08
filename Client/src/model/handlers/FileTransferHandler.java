@@ -153,14 +153,6 @@ public class FileTransferHandler {
         this.currentFileTransferStatus = currentFileTransferStatus;
     }
 
-    public String getCurrentFileTransferHash() {
-        return currentFileTransferHash;
-    }
-
-    public void setCurrentFileTransferHash(String currentFileTransferHash) {
-        this.currentFileTransferHash = currentFileTransferHash;
-    }
-
     public String getFilePathSending() {
         return filePathSending;
     }
